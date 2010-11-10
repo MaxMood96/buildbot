@@ -1,5 +1,6 @@
 # -*- test-case-name: buildbot.test.test_changes -*-
 
+import urllib
 from twisted.python import log
 
 from buildbot.pbutil import NewCredPerspective
@@ -7,9 +8,10 @@ from buildbot.changes import base, changes
 
 class ChangePerspective(NewCredPerspective):
 
-    def __init__(self, changemaster, prefix):
+    def __init__(self, changemaster, prefix, revlinktmpl=''):
         self.changemaster = changemaster
         self.prefix = prefix
+        self.revlinktmpl = revlinktmpl
 
     def attached(self, mind):
         return self
@@ -28,6 +30,11 @@ class ChangePerspective(NewCredPerspective):
             pathnames.append(path)
 
         if pathnames:
+            if self.revlinktmpl and not changedict.get('revlink'):
+                revision = changedict.get('revision')
+                if revision:
+                    changedict['revlink'] = self.revlinktmpl % urllib.quote_plus(str(revision))
+
             change = changes.Change(who=changedict['who'],
                                     files=pathnames,
                                     comments=changedict['comments'],
@@ -43,10 +50,10 @@ class ChangePerspective(NewCredPerspective):
             self.changemaster.addChange(change)
 
 class PBChangeSource(base.ChangeSource):
-    compare_attrs = ["user", "passwd", "port", "prefix"]
+    compare_attrs = ["user", "passwd", "port", "prefix", "revlinktmpl"]
 
     def __init__(self, user="change", passwd="changepw", port=None,
-                 prefix=None, sep=None):
+                 prefix=None, sep=None, revlinktmpl=""):
         """I listen on a TCP port for Changes from 'buildbot sendchange'.
 
         I am a ChangeSource which will accept Changes from a remote source. I
@@ -85,6 +92,7 @@ class PBChangeSource(base.ChangeSource):
         self.passwd = passwd
         self.port = port
         self.prefix = prefix
+        self.revlinktmpl = revlinktmpl
 
     def describe(self):
         # TODO: when the dispatcher is fixed, report the specific port
@@ -109,4 +117,4 @@ class PBChangeSource(base.ChangeSource):
         master.dispatcher.unregister(self.user)
 
     def getPerspective(self):
-        return ChangePerspective(self.parent, self.prefix)
+        return ChangePerspective(self.parent, self.prefix, self.revlinktmpl)
