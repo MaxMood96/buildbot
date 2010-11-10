@@ -388,10 +388,10 @@ class MailNotifier(base.StatusReceiverMultiService):
         if self.mode == "passing" and results != SUCCESS:
             return
         if self.mode == "problem":
-            if results != FAILURE:
+            if results  not in [FAILURE, WARNINGS]: # MvL: report warnings, too
                 return
             prev = build.getPreviousBuild()
-            if prev and prev.getResults() == FAILURE:
+            if prev and prev.getResults() == prev:
                 return
         if self.mode == "change":
             prev = build.getPreviousBuild()
