@@ -23,6 +23,7 @@ class ConfigLoader(master.BuildMaster):
         except:
             raise
 
+        configFile = None
         try:
             os.chdir(tempdir)
             # Add the temp directory to the library path so local modules work
@@ -31,7 +32,7 @@ class ConfigLoader(master.BuildMaster):
             self.loadConfig(configFile, check_synchronously_only=True)
         except:
             os.chdir(dir)
-            configFile.close()
+            if configFile:configFile.close()
             rmtree(tempdir)
             raise
         os.chdir(dir)
