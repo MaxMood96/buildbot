@@ -29,6 +29,52 @@ VALID_EMAIL = re.compile("[a-zA-Z0-9\.\_\%\-\+]+@[a-zA-Z0-9\.\_\%\-]+.[a-zA-Z]{2
 
 ENCODING = 'utf8'
 
+# GB: NEW: log interpreting function
+
+failed_re = re.compile('\d+ tests? failed')
+
+def interpret_test_logfile(lines):
+    state = ''
+    out = []
+    for line in lines:
+        line = line.rstrip('\n')
+        if state == '':
+            if line.startswith('Traceback (most recent call last):'):
+                state = 'tb'
+                out.append('')
+                out.append(line)
+            elif line.startswith('======'):
+                state = 'unittest'
+                out.append('')
+                out.append(line)
+            elif failed_re.match(line):
+                state = 'failed'
+                out.append('')
+                out.append(line)
+            elif line.startswith('process killed by') or \
+                 line.startswith('program finished with') or \
+                 line.startswith('command timed out') or \
+                 line.startswith('make: ***'):
+                out.append('')
+                out.append(line)
+        elif state == 'tb':
+            out.append(line)
+            if not line.startswith(' '):
+                state = ''
+        elif state == 'unittest':
+            out.append(line)
+            if line.startswith('------'):
+                state = ''
+        elif state == 'failed':
+            if not line.startswith(' '):
+                state = ''
+            else:
+                out.append(line)
+    return '\n'.join(out)
+
+# end log interpreting function
+
+
 class Domain(util.ComparableMixin):
     implements(interfaces.IEmailLookup)
     compare_attrs = ["domain"]
@@ -479,6 +525,16 @@ class MailNotifier(base.StatusReceiverMultiService):
             twlog.err("LOG: %s" % str(logs))
         m = self.createEmail(msgdict, name, self.master_status.getProjectName(),
                              results, build, patch, logs)
+
+        # GB: NEW: add test logfile excerpts
+        if "test" in t: # only if the test went wrong
+            for log in build.getLogs():
+    	        if "test" in log.getStep().getName():
+                    text += "\n"
+                    text += "Excerpt from the test logfile:"
+                    text += interpret_test_logfile(log.getText().splitlines())
+                    text += "\n"
+                    break
 
         # now, who is this message going to?
         dl = []
