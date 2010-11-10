@@ -213,6 +213,7 @@ def insertGaps(g, showEvents, lastEventTime, idleGap=2):
     debug = False
 
     e = g.next()
+    have_connect = e.getText() and e.getText()[0] in ('connect', 'disconnect')
     starts, finishes = e.getTimes()
     if debug: log.msg("E0", starts, finishes)
     if finishes == 0:
@@ -229,6 +230,10 @@ def insertGaps(g, showEvents, lastEventTime, idleGap=2):
 
     while 1:
         e = g.next()
+        # MvL: skip every connect/disconnect except for the first one
+        if e.getText() and e.getText()[0] in ('connect', 'disconnect'):
+            if have_connect: continue
+            have_connect = True
         if not showEvents and isinstance(e, builder.Event):
             continue
         starts, finishes = e.getTimes()
