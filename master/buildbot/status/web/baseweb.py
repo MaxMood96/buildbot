@@ -313,7 +313,7 @@ class WebStatus(service.MultiService):
             self.putChild("change_hook", ChangeHookResource(dialects = self.change_hook_dialects))
 
     def setupUsualPages(self, numbuilds, num_events, num_events_max):
-        #self.putChild("", IndexOrWaterfallRedirection())
+        self.putChild("", Redirect("waterfall"))
         self.putChild("waterfall", WaterfallStatusResource(num_events=num_events,
                                         num_events_max=num_events_max))
         self.putChild("grid", GridStatusResource())
