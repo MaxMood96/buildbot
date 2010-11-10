@@ -647,7 +647,7 @@ class WaterfallStatusResource(HtmlResource):
                         stuff.append(today)
                         lastDate = today
                     stuff.append(
-                        time.strftime("%H:%M:%S",
+                        time.strftime("%H:%M", # MvL took off seconds
                                       time.localtime(timestamps[r])))
                     grid[0].append(Box(text=stuff, class_="Time",
                                        valign="bottom", align="center"))
