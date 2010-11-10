@@ -103,6 +103,7 @@
      <p>To force a build, fill out the following fields and
         push the 'Force Build' button</p>
   {% endif %}
+  <p>'Branch to build' is relative to http://svn.python.org/projects/python.</p>
   
   {% if authz.needAuthForm('forceBuild') %}
     {{ auth() }}
