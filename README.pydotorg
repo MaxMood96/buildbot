@@ -1,2 +1,6 @@
 This branch contains changes specific to the python-dev
 installation of buildbot.
+
+When making new such changes, commit them into the pydotorg
+branch, and then merge this branch into the maintenance branch
+that is currently use (0.8.2 at the point of this writing).
