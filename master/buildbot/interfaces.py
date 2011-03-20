@@ -1,3 +1,18 @@
+# This file is part of Buildbot.  Buildbot is free software: you can
+# redistribute it and/or modify it under the terms of the GNU General Public
+# License as published by the Free Software Foundation, version 2.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc., 51
+# Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Copyright Buildbot Team Members
+
 """Interface documentation.
 
 Define the interfaces that are implemented by various buildbot classes.
@@ -33,14 +48,6 @@ class IChangeSource(Interface):
 
       self.changemaster.addChange(change)
     """
-
-    def start():
-        """Called when the buildmaster starts. Can be used to establish
-        connections to VC daemons or begin polling."""
-
-    def stop():
-        """Called when the buildmaster shuts down. Connections should be
-        terminated, polling timers should be canceled."""
 
     def describe():
         """Should return a string which briefly describes this source. This
@@ -127,7 +134,7 @@ class ISourceStamp(Interface):
 
     def mergeWith(self, others):
         """Generate a SourceStamp for the merger of me and all the other
-        BuildRequests. This is called by a Build when it starts, to figure
+        SourceStamps. This is called by a Build when it starts, to figure
         out what its sourceStamp should be."""
 
     def getAbsoluteSourceStamp(self, got_revision):

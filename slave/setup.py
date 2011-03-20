@@ -1,11 +1,20 @@
 #!/usr/bin/env python
 #
-# This software may be freely redistributed under the terms of the GNU
-# general public license.
+# This file is part of Buildbot.  Buildbot is free software: you can
+# redistribute it and/or modify it under the terms of the GNU General Public
+# License as published by the Free Software Foundation, version 2.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc., 51
+# Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Copyright Buildbot Team Members
+
 """
 Standard setup script.
 """
@@ -23,8 +32,15 @@ scripts = ["bin/buildslave"]
 # still needs to get packaged.
 if 'sdist' in sys.argv or sys.platform == 'win32':
     scripts.append("contrib/windows/buildslave.bat")
+    scripts.append("contrib/windows/buildbot_service.py")
 
 class our_install_data(install_data):
+
+    def finalize_options(self):
+        self.set_undefined_options('install',
+            ('install_lib', 'install_dir'),
+        )
+        install_data.finalize_options(self)
 
     def run(self):
         install_data.run(self)
@@ -91,17 +107,13 @@ try:
     # to the setup args.
     import setuptools #@UnusedImport
 except ImportError:
-    setup_args['scripts'] = [
-        'bin/buildslave'
-    ]
+    pass
 else:
     setup_args['install_requires'] = [
         'twisted >= 2.0.0',
     ]
-    setup_args['entry_points'] = {
-        'console_scripts': [
-            'buildslave = buildslave.scripts.runner:run',
-        ],
-    }
+
+    if os.getenv('NO_INSTALL_REQS'):
+        setup_args['install_requires'] = None
 
 setup(**setup_args)

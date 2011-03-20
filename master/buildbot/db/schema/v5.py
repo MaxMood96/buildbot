@@ -1,3 +1,18 @@
+# This file is part of Buildbot.  Buildbot is free software: you can
+# redistribute it and/or modify it under the terms of the GNU General Public
+# License as published by the Free Software Foundation, version 2.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc., 51
+# Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Copyright Buildbot Team Members
+
 from buildbot.db.schema import base
 
 class Upgrader(base.Upgrader):
@@ -47,7 +62,7 @@ class Upgrader(base.Upgrader):
             lengthstr = " (%i)" % length
         q = "CREATE INDEX `%(table)s_%(column)s` ON `%(table)s` (`%(column)s`%(lengthstr)s)"
         cursor = self.conn.cursor()
-        cursor.execute(q % locals())
+        cursor.execute(q % {'table': table, 'column': column, 'lengthstr': lengthstr})
 
     def set_version(self):
         c = self.conn.cursor()

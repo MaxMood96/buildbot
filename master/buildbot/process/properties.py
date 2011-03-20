@@ -1,3 +1,18 @@
+# This file is part of Buildbot.  Buildbot is free software: you can
+# redistribute it and/or modify it under the terms of the GNU General Public
+# License as published by the Free Software Foundation, version 2.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc., 51
+# Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Copyright Buildbot Team Members
+
 import re
 import weakref
 from buildbot import util
@@ -39,6 +54,8 @@ class Properties(util.ComparableMixin):
     def __setstate__(self, d):
         self.__dict__ = d
         self.pmap = PropertyMap(self)
+        if not hasattr(self, 'runtime'):
+            self.runtime = set()
 
     def __contains__(self, name):
         return name in self.properties
@@ -122,6 +139,7 @@ class PropertyMap:
     def __init__(self, properties):
         # use weakref here to avoid a reference loop
         self.properties = weakref.ref(properties)
+        self.temp_vals = {}
 
     def __getitem__(self, key):
         properties = self.properties()
@@ -131,7 +149,9 @@ class PropertyMap:
             # %(prop:-repl)s
             # if prop exists, use it; otherwise, use repl
             prop, repl = mo.group(1,2)
-            if properties.has_key(prop):
+            if prop in self.temp_vals:
+                return self.temp_vals[prop]
+            elif properties.has_key(prop):
                 return properties[prop]
             else:
                 return repl
@@ -140,7 +160,9 @@ class PropertyMap:
             # %(prop:~repl)s
             # if prop exists and is true (nonempty), use it; otherwise, use repl
             prop, repl = mo.group(1,2)
-            if properties.has_key(prop) and properties[prop]:
+            if prop in self.temp_vals and self.temp_vals[prop]:
+                return self.temp_vals[prop]
+            elif properties.has_key(prop) and properties[prop]:
                 return properties[prop]
             else:
                 return repl
@@ -149,7 +171,7 @@ class PropertyMap:
             # %(prop:+repl)s
             # if prop exists, use repl; otherwise, an empty string
             prop, repl = mo.group(1,2)
-            if properties.has_key(prop):
+            if properties.has_key(prop) or prop in self.temp_vals:
                 return repl
             else:
                 return ''
@@ -164,11 +186,23 @@ class PropertyMap:
                 rv = fn(mo)
                 break
         else:
-            rv = properties[key]
+            # If explicitly passed as a kwarg, use that,
+            # otherwise, use the property value.
+            if key in self.temp_vals:
+                rv = self.temp_vals[key]
+            else:
+                rv = properties[key]
 
         # translate 'None' to an empty string
         if rv is None: rv = ''
         return rv
+
+    def add_temporary_value(self, key, val):
+        'Add a temporary value (to support keyword arguments to WithProperties)'
+        self.temp_vals[key] = val
+
+    def clear_temporary_values(self):
+        self.temp_vals = {}
 
 class WithProperties(util.ComparableMixin):
     """
@@ -178,9 +212,16 @@ class WithProperties(util.ComparableMixin):
 
     compare_attrs = ('fmtstring', 'args')
 
-    def __init__(self, fmtstring, *args):
+    def __init__(self, fmtstring, *args, **lambda_subs):
         self.fmtstring = fmtstring
         self.args = args
+        if not self.args:
+            self.lambda_subs = lambda_subs
+            for key, val in self.lambda_subs.iteritems():
+                if not callable(val):
+                    raise ValueError('Value for lambda substitution "%s" must be callable.' % key)
+        elif lambda_subs:
+            raise ValueError('WithProperties takes either positional or keyword substitutions, not both.')
 
     def render(self, pmap):
         if self.args:
@@ -189,5 +230,9 @@ class WithProperties(util.ComparableMixin):
                 strings.append(pmap[name])
             s = self.fmtstring % tuple(strings)
         else:
+            properties = pmap.properties()
+            for k,v in self.lambda_subs.iteritems():
+                pmap.add_temporary_value(k, v(properties))
             s = self.fmtstring % pmap
+            pmap.clear_temporary_values()
         return s

@@ -1,48 +1,23 @@
-# ***** BEGIN LICENSE BLOCK *****
-# Version: MPL 1.1/GPL 2.0/LGPL 2.1
+# This file is part of Buildbot.  Buildbot is free software: you can
+# redistribute it and/or modify it under the terms of the GNU General Public
+# License as published by the Free Software Foundation, version 2.
 #
-# The contents of this file are subject to the Mozilla Public License Version
-# 1.1 (the "License"); you may not use this file except in compliance with
-# the License. You may obtain a copy of the License at
-# http://www.mozilla.org/MPL/
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
 #
-# Software distributed under the License is distributed on an "AS IS" basis,
-# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-# for the specific language governing rights and limitations under the
-# License.
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc., 51
+# Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
-# The Original Code is Mozilla-specific Buildbot steps.
-#
-# The Initial Developer of the Original Code is
-# Mozilla Foundation.
-# Portions created by the Initial Developer are Copyright (C) 2009
-# the Initial Developer. All Rights Reserved.
-#
-# Contributor(s):
-#   Brian Warner <warner@lothar.com>
-#
-# Alternatively, the contents of this file may be used under the terms of
-# either the GNU General Public License Version 2 or later (the "GPL"), or
-# the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-# in which case the provisions of the GPL or the LGPL are applicable instead
-# of those above. If you wish to allow use of your version of this file only
-# under the terms of either the GPL or the LGPL, and not to allow others to
-# use your version of this file under the terms of the MPL, indicate your
-# decision by deleting the provisions above and replace them with the notice
-# and other provisions required by the GPL or the LGPL. If you do not delete
-# the provisions above, a recipient may use your version of this file under
-# the terms of any one of the MPL, the GPL or the LGPL.
-#
-# ***** END LICENSE BLOCK *****
+# Copyright Buildbot Team Members
 
 import os.path
 
-from zope.interface import implements
-from twisted.application import strports
+from twisted.internet import defer
 from twisted.python import log, runtime
 from twisted.protocols import basic
-from twisted.cred import portal, checkers
-from twisted.spread import pb
 
 from buildbot import pbutil
 from buildbot.sourcestamp import SourceStamp
@@ -187,36 +162,36 @@ class Try_Jobdir(TryBase):
         bsid = self.create_buildset(ssid, reason, t, builderNames=builderNames)
         return bsid
 
+
 class Try_Userpass(TryBase):
     compare_attrs = ( 'name', 'builderNames', 'port', 'userpass', 'properties' )
-    implements(portal.IRealm)
 
     def __init__(self, name, builderNames, port, userpass,
                  properties={}):
         base.BaseScheduler.__init__(self, name, builderNames, properties)
-        if type(port) is int:
-            port = "tcp:%d" % port
         self.port = port
         self.userpass = userpass
-        c = checkers.InMemoryUsernamePasswordDatabaseDontUse()
-        for user,passwd in self.userpass:
-            c.addUser(user, passwd)
+        self.properties = properties
 
-        p = portal.Portal(self)
-        p.registerChecker(c)
-        f = pb.PBServerFactory(p)
-        s = strports.service(port, f)
-        s.setServiceParent(self)
+    def startService(self):
+        TryBase.startService(self)
+        master = self.parent.parent
 
-    def getPort(self):
-        # utility method for tests: figure out which TCP port we just opened.
-        return self.services[0]._port.getHost().port
+        # register each user/passwd with the pbmanager
+        def factory(mind, username):
+            return Try_Userpass_Perspective(self, username)
+        self.registrations = []
+        for user, passwd in self.userpass:
+            self.registrations.append(
+                    master.pbmanager.register(self.port, user, passwd, factory))
 
-    def requestAvatar(self, avatarID, mind, interface):
-        log.msg("%s got connection from user %s" % (self, avatarID))
-        assert interface == pb.IPerspective
-        p = Try_Userpass_Perspective(self, avatarID)
-        return (pb.IPerspective, p, lambda: None)
+    def stopService(self):
+        d = defer.maybeDeferred(TryBase.stopService, self)
+        def unreg(_):
+            return defer.gatherResults(
+                [ reg.unregister() for reg in self.registrations ])
+        d.addCallback(unreg)
+
 
 class Try_Userpass_Perspective(pbutil.NewCredPerspective):
     def __init__(self, parent, username):

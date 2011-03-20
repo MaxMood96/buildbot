@@ -1,4 +1,18 @@
-# -*- test-case-name: buildbot.test.test_step -*-
+# This file is part of Buildbot.  Buildbot is free software: you can
+# redistribute it and/or modify it under the terms of the GNU General Public
+# License as published by the Free Software Foundation, version 2.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc., 51
+# Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Copyright Buildbot Team Members
+
 
 import types
 
@@ -9,7 +23,7 @@ from twisted.internet import reactor, defer, error
 
 from buildbot import interfaces, locks
 from buildbot.status.builder import SUCCESS, WARNINGS, FAILURE, EXCEPTION, \
-  RETRY, worst_status
+  RETRY, SKIPPED, worst_status
 from buildbot.status.builder import Results
 from buildbot.status.progress import BuildProgress
 
@@ -410,7 +424,10 @@ class Build:
         elif result in (EXCEPTION, RETRY):
             terminate = True
 
-        self.result = worst_status(self.result, possible_overall_result)
+        # if we skipped this step, then don't adjust the build status
+        if result != SKIPPED:
+            self.result = worst_status(self.result, possible_overall_result)
+
         return terminate
 
     def lostRemote(self, remote=None):
@@ -441,8 +458,7 @@ class Build:
         if self.currentStep:
             self.currentStep.interrupt(reason)
 
-        self.result = FAILURE
-        self.text.append("Interrupted")
+        self.result = EXCEPTION
 
         if self._acquiringLock:
             lock, access, d = self._acquiringLock
@@ -464,7 +480,7 @@ class Build:
     def buildException(self, why):
         log.msg("%s.buildException" % self)
         log.err(why)
-        self.buildFinished(["build", "exception"], FAILURE)
+        self.buildFinished(["build", "exception"], EXCEPTION)
 
     def buildFinished(self, text, results):
         """This method must be called when the last Step has completed. It

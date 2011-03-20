@@ -1,12 +1,23 @@
-from mock import Mock, patch_object
-from buildbot.interfaces import ParameterError
+# This file is part of Buildbot.  Buildbot is free software: you can
+# redistribute it and/or modify it under the terms of the GNU General Public
+# License as published by the Free Software Foundation, version 2.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc., 51
+# Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Copyright Buildbot Team Members
+
 from twisted.trial import unittest
 
 from email import message_from_string
-from email.Utils import parseaddr, parsedate_tz, mktime_tz
-import datetime
-from buildbot.status.builder import SUCCESS, FAILURE
-from buildbot.changes.mail import MaildirSource, CVSMaildirSource
+from email.Utils import parsedate_tz, mktime_tz
+from buildbot.changes.mail import CVSMaildirSource
 
 #
 # Sample message from CVS version 1.11
@@ -118,6 +129,7 @@ class TestCVSMaildirSource(unittest.TestCase):
         src = CVSMaildirSource('/dev/null')
         try:
             change = src.parse( m )
+            assert change
         except ValueError:
             pass
         else:
@@ -130,6 +142,7 @@ class TestCVSMaildirSource(unittest.TestCase):
         src = CVSMaildirSource('/dev/null')
         try:
             change = src.parse( m )
+            assert change
         except ValueError:
             pass
         else:

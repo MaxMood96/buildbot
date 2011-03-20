@@ -1,3 +1,18 @@
+# This file is part of Buildbot.  Buildbot is free software: you can
+# redistribute it and/or modify it under the terms of the GNU General Public
+# License as published by the Free Software Foundation, version 2.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc., 51
+# Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Copyright Buildbot Team Members
+
 from buildbot.db.schema import base
 
 class Upgrader(base.Upgrader):
@@ -19,13 +34,16 @@ class Upgrader(base.Upgrader):
         raise ValueError("Unsupported dbapi: %s" % self.dbapiName)
 
     def migrate_table(self, table_name, schema):
-        old_name = "%s_old" % table_name
+        names = {
+            'old_name': "%s_old" % table_name,
+            'table_name': table_name,
+        }
         cursor = self.conn.cursor()
         # If this fails, there's no cleaning up to do
         cursor.execute("""
             ALTER TABLE %(table_name)s
                 RENAME TO %(old_name)s
-        """ % locals())
+        """ % names)
 
         try:
             cursor.execute(schema)
@@ -34,26 +52,26 @@ class Upgrader(base.Upgrader):
             cursor.execute("""
                 ALTER TABLE %(old_name)s
                     RENAME TO %(table_name)s
-            """ % locals())
+            """ % names)
             raise
 
         try:
             cursor.execute("""
                 INSERT INTO %(table_name)s
                     SELECT * FROM %(old_name)s
-            """ % locals())
+            """ % names)
             cursor.execute("""
                 DROP TABLE %(old_name)s
-            """ % locals())
+            """ % names)
         except:
             # Clean up the new table, and restore the original
             cursor.execute("""
                 DROP TABLE %(table_name)s
-            """ % locals())
+            """ % names)
             cursor.execute("""
                 ALTER TABLE %(old_name)s
                     RENAME TO %(table_name)s
-            """ % locals())
+            """ % names)
             raise
 
     def set_version(self):
@@ -69,7 +87,7 @@ class Upgrader(base.Upgrader):
                 `class_name` VARCHAR(100) NOT NULL, -- the scheduler's class
                 `state` VARCHAR(1024) NOT NULL -- JSON-encoded state dictionary
             );
-        """ % locals()
+        """ % {'schedulerid_col': schedulerid_col}
         self.migrate_table('schedulers', schema)
 
         # Fix up indices
@@ -90,7 +108,7 @@ class Upgrader(base.Upgrader):
                 `start_time` INTEGER NOT NULL,
                 `finish_time` INTEGER
             );
-        """ % locals()
+        """ % {'buildid_col': buildid_col}
         self.migrate_table('builds', schema)
 
     def migrate_changes(self):
@@ -115,7 +133,7 @@ class Upgrader(base.Upgrader):
                 -- later to filter changes
                 `project` TEXT NOT NULL default ''
             );
-        """ % locals()
+        """ % {'changeid_col': changeid_col}
         self.migrate_table('changes', schema)
 
         # Drop changes_nextid columnt
@@ -159,7 +177,7 @@ class Upgrader(base.Upgrader):
 
                 `complete_at` INTEGER
             );
-        """ % locals()
+        """ % {'buildrequestid_col': buildrequestid_col}
         self.migrate_table('buildrequests', schema)
 
     def migrate_buildsets(self):
@@ -176,7 +194,7 @@ class Upgrader(base.Upgrader):
                 `results` SMALLINT -- 0=SUCCESS,2=FAILURE, from status/builder.py
                  -- results is NULL until complete==1
             );
-        """ % locals()
+        """ % {'buildsetsid_col': buildsetsid_col}
         self.migrate_table("buildsets", schema)
 
     def migrate_patches(self):
@@ -188,7 +206,7 @@ class Upgrader(base.Upgrader):
                 `patch_base64` TEXT NOT NULL, -- encoded bytestring
                 `subdir` TEXT -- usually NULL
             );
-        """ % locals()
+        """ % {'patchesid_col': patchesid_col}
         self.migrate_table("patches", schema)
 
     def migrate_sourcestamps(self):
@@ -202,5 +220,5 @@ class Upgrader(base.Upgrader):
                 `repository` TEXT not null default '',
                 `project` TEXT not null default ''
             );
-        """ % locals()
+        """ % {'sourcestampsid_col': sourcestampsid_col}
         self.migrate_table("sourcestamps", schema)

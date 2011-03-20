@@ -1,8 +1,23 @@
-# -*- test-case-name: buildbot.test.test_transfer -*-
+# This file is part of Buildbot.  Buildbot is free software: you can
+# redistribute it and/or modify it under the terms of the GNU General Public
+# License as published by the Free Software Foundation, version 2.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc., 51
+# Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Copyright Buildbot Team Members
+
 
 import os.path, tarfile, tempfile
 try:
     from cStringIO import StringIO
+    assert StringIO
 except ImportError:
     from StringIO import StringIO
 from twisted.internet import reactor
@@ -27,10 +42,9 @@ class _FileWriter(pb.Referenceable):
             os.makedirs(dirname)
 
         self.destfile = destfile
+        self.mode = mode
         fd, self.tmpname = tempfile.mkstemp(dir=dirname)
         self.fp = os.fdopen(fd, 'wb')
-        if mode is not None:
-            os.chmod(destfile, mode)
         self.remaining = maxsize
 
     def remote_write(self, data):
@@ -55,8 +69,13 @@ class _FileWriter(pb.Referenceable):
         """
         self.fp.close()
         self.fp = None
+        # on windows, os.rename does not automatically unlink, so do it manually
+        if os.path.exists(self.destfile):
+            os.unlink(self.destfile)
         os.rename(self.tmpname, self.destfile)
         self.tmpname = None
+        if self.mode is not None:
+            os.chmod(self.destfile, self.mode)
 
     def __del__(self):
         # unclean shutdown, the file is probably truncated, so delete it
@@ -543,7 +562,7 @@ class StringDownload(_TransferBuildStep):
                                   os.path.basename(slavedest)])
 
         # setup structures for reading the file
-        fp = StringIO(self.s)
+        fp = StringIO(properties.render(self.s))
         fileReader = _FileReader(fp)
 
         # default arguments

@@ -1,3 +1,18 @@
+# This file is part of Buildbot.  Buildbot is free software: you can
+# redistribute it and/or modify it under the terms of the GNU General Public
+# License as published by the Free Software Foundation, version 2.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc., 51
+# Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Copyright Buildbot Team Members
+
 #!/usr/bin/env python
 """
 github_buildbot.py is based on git_buildbot.py
@@ -9,28 +24,18 @@ repository for the user who initiated the build on the buildslave.
 
 """
 
-import tempfile
 import logging
 import re
 import sys
 import traceback
-from twisted.web import server, resource
-from twisted.internet import reactor
-from twisted.spread import pb
-from twisted.cred import credentials
-from optparse import OptionParser
 from buildbot.changes.changes import Change
 import datetime
-import time
 from twisted.python import log
 import calendar
-import time
-import calendar
-import datetime
-import re
 
 try:
     import json
+    assert json
 except ImportError:
     import simplejson as json
 
@@ -86,7 +91,8 @@ def getChanges(request, options = None):
             user = payload['repository']['owner']['name']
             repo = payload['repository']['name']
             repo_url = payload['repository']['url']
-            private = payload['repository']['private']
+            # This field is unused:
+            #private = payload['repository']['private']
             changes = process_change(payload, user, repo, repo_url)
             log.msg("Received %s changes from github" % len(changes))
             return changes

@@ -1,12 +1,26 @@
+# This file is part of Buildbot.  Buildbot is free software: you can
+# redistribute it and/or modify it under the terms of the GNU General Public
+# License as published by the Free Software Foundation, version 2.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc., 51
+# Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Copyright Buildbot Team Members
 
-import os, signal, types, re, traceback
-from stat import ST_CTIME, ST_MTIME, ST_SIZE
+
 import os
+from base64 import b64encode
 import sys
 import shutil
 
 from zope.interface import implements
-from twisted.internet import reactor, defer, task
+from twisted.internet import reactor, defer
 from twisted.python import log, failure, runtime
 
 from buildslave.interfaces import ISlaveCommand
@@ -259,9 +273,16 @@ class SourceBaseCommand(Command):
             self.srcdir = self.workdir
 
         self.sourcedatafile = os.path.join(self.builder.basedir,
-                                           ".buildbot-sourcedata")
+            ".buildbot-sourcedata-" + b64encode(self.srcdir))
+
         # upgrade older versions to the new sourcedata location
         old_sd_path = os.path.join(self.builder.basedir, self.srcdir, ".buildbot-sourcedata")
+        if os.path.exists(old_sd_path) and not os.path.exists(self.sourcedatafile):
+            os.rename(old_sd_path, self.sourcedatafile)
+
+        # also upgrade versions that didn't include the encoded version of the
+        # source directory
+        old_sd_path = os.path.join(self.builder.basedir, ".buildbot-sourcedata")
         if os.path.exists(old_sd_path) and not os.path.exists(self.sourcedatafile):
             os.rename(old_sd_path, self.sourcedatafile)
 

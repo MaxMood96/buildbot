@@ -1,7 +1,22 @@
-# -*- test-case-name: buildbot.test.test_changes -*-
+# This file is part of Buildbot.  Buildbot is free software: you can
+# redistribute it and/or modify it under the terms of the GNU General Public
+# License as published by the Free Software Foundation, version 2.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc., 51
+# Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Copyright Buildbot Team Members
+
 
 import urllib
 from twisted.python import log
+from twisted.internet import defer
 
 from buildbot.pbutil import NewCredPerspective
 from buildbot.changes import base, changes
@@ -79,20 +94,20 @@ class PBChangeSource(base.ChangeSource):
                     prefix= with a trailing directory separator. This
                     docstring (and the better-than-nothing error message
                     which occurs when you use it) will be removed in 0.7.5 .
+
+        @param port: strport to use, or None to use the master's slavePortnum
         """
 
         # sep= was removed in 0.7.4 . This more-helpful-than-nothing error
         # message will be removed in 0.7.5 .
         assert sep is None, "prefix= is now a complete string, do not use sep="
-        # TODO: current limitations
-        assert user == "change"
-        assert passwd == "changepw"
-        assert port == None
+
         self.user = user
         self.passwd = passwd
         self.port = port
         self.prefix = prefix
         self.revlinktmpl = revlinktmpl
+        self.registration = None
 
     def describe(self):
         # TODO: when the dispatcher is fixed, report the specific port
@@ -104,17 +119,22 @@ class PBChangeSource(base.ChangeSource):
 
     def startService(self):
         base.ChangeSource.startService(self)
-        # our parent is the ChangeMaster object
-        # find the master's Dispatch object and register our username
-        # TODO: the passwd should be registered here too
         master = self.parent.parent
-        master.dispatcher.register(self.user, self)
+        port = self.port
+        if not port:
+            port = master.slavePortnum
+        self.registration = master.pbmanager.register(
+                port, self.user, self.passwd,
+                self.getPerspective)
 
     def stopService(self):
-        base.ChangeSource.stopService(self)
-        # unregister our username
-        master = self.parent.parent
-        master.dispatcher.unregister(self.user)
+        d = defer.maybeDeferred(base.ChangeSource.stopService, self)
+        def unreg(_):
+            if self.registration:
+                return self.registration.unregister()
+        d.addCallback(unreg)
+        return d
 
-    def getPerspective(self):
+    def getPerspective(self, mind, username):
+        assert username == self.user
         return ChangePerspective(self.parent, self.prefix, self.revlinktmpl)

@@ -1,4 +1,18 @@
-# -*- test-case-name: buildbot.test.test_runner -*-
+# This file is part of Buildbot.  Buildbot is free software: you can
+# redistribute it and/or modify it under the terms of the GNU General Public
+# License as published by the Free Software Foundation, version 2.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc., 51
+# Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Copyright Buildbot Team Members
+
 
 # N.B.: don't import anything that might pull in a reactor yet. Some of our
 # subcommands want to load modules that need the gtk reactor.
@@ -458,7 +472,7 @@ def upgradeMaster(config):
     m.move_if_present(os.path.join(basedir, "public_html/index.html"),
                       os.path.join(basedir, "templates/root.html"))
 
-    from buildbot.db import connector, dbspec
+    from buildbot.db import dbspec
     spec = dbspec.DBSpec.from_url(config["db"], basedir)
     # TODO: check that TAC file specifies the right spec
 
@@ -634,7 +648,7 @@ def restart(config):
     basedir = config['basedir']
     quiet = config['quiet']
 
-    if not isBuildmasterDir(config['basedir']):
+    if not isBuildmasterDir(basedir):
         print "not a buildmaster directory"
         sys.exit(1)
 
@@ -771,9 +785,12 @@ class SendChangeOptions(OptionsWithOptionsFile):
     optParameters = [
         ("master", "m", None,
          "Location of the buildmaster's PBListener (host:port)"),
-        ("username", "u", None, "Username performing the commit"),
-        ("repository", "R", None, "Repository specifier"),
-        ("project", "P", None, "Project specifier"),
+        # deprecated in 0.8.3; remove in 0.8.5 (bug #1711)
+        ("username", "u", None, "deprecated name for --who"),
+        ("auth", "a", None, "Authentication token - username:password, or prompt for password"),
+        ("who", "W", None, "Author of the commit"),
+        ("repository", "R", '', "Repository specifier"),
+        ("project", "P", '', "Project specifier"),
         ("branch", "b", None, "Branch specifier"),
         ("category", "C", None, "Category of repository"),
         ("revision", "r", None, "Revision specifier"),
@@ -784,11 +801,12 @@ class SendChangeOptions(OptionsWithOptionsFile):
         ("logfile", "F", None,
          "Read the log messages from this file (- for stdin)"),
         ("when", "w", None, "timestamp to use as the change time"),
-        ("revlink", "l", None, "Revision link (revlink)"),
+        ("revlink", "l", '', "Revision link (revlink)"),
         ]
 
     buildbotOptions = [
         [ 'master', 'master' ],
+        [ 'who', 'who' ],
         [ 'username', 'username' ],
         [ 'branch', 'branch' ],
         [ 'category', 'category' ],
@@ -808,7 +826,11 @@ def sendchange(config, runReactor=False):
     connection will be drpoped as soon as the Change has been sent."""
     from buildbot.clients.sendchange import Sender
 
-    user = config.get('username')
+    who = config.get('who')
+    if not who and config.get('username'):
+        print "NOTE: --username/-u is deprecated: use --who/-W'"
+        who = config.get('username')
+    auth = config.get('auth')
     master = config.get('master')
     branch = config.get('branch')
     category = config.get('category')
@@ -836,11 +858,20 @@ def sendchange(config, runReactor=False):
 
     files = config.get('files', [])
 
-    assert user, "you must provide a username"
+    # fix up the auth with a password if none was given
+    if not auth:
+        auth = 'change:changepw'
+    if ':' not in auth:
+        import getpass
+        pw = getpass.getpass("Enter password for '%s': " % auth)
+        auth = "%s:%s" % (auth, pw)
+    auth = auth.split(':', 1)
+
+    assert who, "you must provide a committer (--who)"
     assert master, "you must provide the master location"
 
-    s = Sender(master, user)
-    d = s.send(branch, revision, comments, files, category=category, when=when,
+    s = Sender(master, auth)
+    d = s.send(branch, revision, comments, files, who=who, category=category, when=when,
                properties=properties, repository=repository, project=project,
                revlink=revlink)
     if runReactor:
@@ -987,6 +1018,7 @@ class TryServerOptions(OptionsWithOptionsFile):
 def doTryServer(config):
     try:
         from hashlib import md5
+        assert md5
     except ImportError:
         # For Python 2.4 compatibility
         import md5

@@ -1,4 +1,17 @@
-# -*- test-case-name: buildbot.test.test_web_status_json -*-
+# This file is part of Buildbot.  Buildbot is free software: you can
+# redistribute it and/or modify it under the terms of the GNU General Public
+# License as published by the Free Software Foundation, version 2.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc., 51
+# Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Portions Copyright Buildbot Team Members
 # Original Copyright (c) 2010 The Chromium Authors.
 
 """Simple JSON exporter."""
@@ -485,20 +498,20 @@ class BuildStepsJsonResource(JsonResource):
 
     def getChild(self, path, request):
         # Dynamic childs.
-        build_set_status = None
+        build_step_status = None
         if isinstance(path, int) or _IS_INT.match(path):
-            build_set_status = self.build_status.getSteps[int(path)]
+            build_step_status = self.build_status.getSteps[int(path)]
         else:
             steps_dict = dict([(step.getName(), step)
                                for step in self.build_status.getStep()])
-            build_set_status = steps_dict.get(path)
-        if build_set_status:
+            build_step_status = steps_dict.get(path)
+        if build_step_status:
             # Create it on-demand.
-            child = BuildStepJsonResource(status, build_step_status)
+            child = BuildStepJsonResource(self.status, build_step_status)
             # Cache it.
             index = self.build_status.getSteps().index(build_step_status)
             self.putChild(str(index), child)
-            self.putChild(build_set_status.getName(), child)
+            self.putChild(build_step_status.getName(), child)
             return child
         return JsonResource.getChild(self, path, request)
 

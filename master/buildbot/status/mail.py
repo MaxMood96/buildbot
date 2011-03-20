@@ -1,4 +1,18 @@
-# -*- test-case-name: buildbot.test.test_status -*-
+# This file is part of Buildbot.  Buildbot is free software: you can
+# redistribute it and/or modify it under the terms of the GNU General Public
+# License as published by the Free Software Foundation, version 2.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc., 51
+# Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Copyright Buildbot Team Members
+
 
 import re
 
@@ -101,6 +115,8 @@ def defaultMessage(mode, name, build, results, master_status):
         text += "The Buildbot has finished a build"
     elif mode == "failing":
         text += "The Buildbot has detected a failed build"
+    elif mode == "warnings":
+        text += "The Buildbot has detected a problem in the build"
     elif mode == "passing":
         text += "The Buildbot has detected a passing build"
     elif mode == "change" and result == 'success':
@@ -219,6 +235,7 @@ class MailNotifier(base.StatusReceiverMultiService):
         @param mode: one of:
                      - 'all': send mail about all builds, passing and failing
                      - 'failing': only send mail about builds which fail
+                     - 'warnings': send mail if builds contain warnings or fail 
                      - 'passing': only send mail about builds which succeed
                      - 'problem': only send mail about a build which failed
                      when the previous build passed
@@ -309,7 +326,7 @@ class MailNotifier(base.StatusReceiverMultiService):
         self.extraRecipients = extraRecipients
         self.sendToInterestedUsers = sendToInterestedUsers
         self.fromaddr = fromaddr
-        assert mode in ('all', 'failing', 'problem', 'change', 'passing')
+        assert mode in ('all', 'failing', 'problem', 'change', 'passing', 'warnings')
         self.mode = mode
         self.categories = categories
         self.builders = builders
@@ -383,6 +400,8 @@ class MailNotifier(base.StatusReceiverMultiService):
                builder.category not in self.categories:
             return # ignore this build
 
+        if self.mode == "warnings" and results == SUCCESS:
+            return
         if self.mode == "failing" and results != FAILURE:
             return
         if self.mode == "passing" and results != SUCCESS:
@@ -597,7 +616,7 @@ class MailNotifier(base.StatusReceiverMultiService):
         if self.smtpUser and self.smtpPassword:
             useAuth = True
         else:
-	    useAuth = False
+            useAuth = False
         
         sender_factory = ESMTPSenderFactory(
             self.smtpUser, self.smtpPassword,

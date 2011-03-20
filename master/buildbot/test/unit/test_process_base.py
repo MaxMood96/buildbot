@@ -1,12 +1,26 @@
+# This file is part of Buildbot.  Buildbot is free software: you can
+# redistribute it and/or modify it under the terms of the GNU General Public
+# License as published by the Free Software Foundation, version 2.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc., 51
+# Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Copyright Buildbot Team Members
+
 from twisted.trial import unittest
 from twisted.internet import defer
 
 from buildbot.process.base import Build
 from buildbot.process.properties import Properties
-from buildbot.buildrequest import BuildRequest
 from buildbot.status.builder import FAILURE, SUCCESS, WARNINGS, RETRY, EXCEPTION
-from buildbot.locks import SlaveLock, RealSlaveLock
-from buildbot.process.buildstep import BuildStep, LoggingBuildStep
+from buildbot.locks import SlaveLock
+from buildbot.process.buildstep import LoggingBuildStep
 
 from mock import Mock
 
@@ -91,8 +105,7 @@ class TestBuild(unittest.TestCase):
 
         b.startBuild(status, None, slavebuilder)
 
-        self.assert_("Interrupted" in b.text)
-        self.assertEqual(b.result, FAILURE)
+        self.assertEqual(b.result, EXCEPTION)
 
         self.assert_( ('interrupt', ('stop it',), {}) in step.method_calls)
 
@@ -173,7 +186,6 @@ class TestBuild(unittest.TestCase):
         status = Mock()
 
         l = SlaveLock('lock')
-        claimCount = [0]
         lock_access = l.access('counting')
         l.access = lambda mode: lock_access
         real_lock = b.builder.botmaster.getLockByID(l).getLock(slavebuilder)
@@ -196,8 +208,7 @@ class TestBuild(unittest.TestCase):
 
         self.assert_( ('startStep', (b.remote,), {}) not in step.method_calls)
         self.assert_(b.currentStep is None)
-        self.assert_("Interrupted" in b.text, b.text)
-        self.assertEqual(b.result, FAILURE)
+        self.assertEqual(b.result, EXCEPTION)
         self.assert_( ('interrupt', ('stop it',), {}) not in step.method_calls)
 
     def testStopBuildWaitingForStepLocks(self):
@@ -210,7 +221,6 @@ class TestBuild(unittest.TestCase):
         status = Mock()
 
         l = SlaveLock('lock')
-        claimCount = [0]
         lock_access = l.access('counting')
         l.access = lambda mode: lock_access
         real_lock = b.builder.botmaster.getLockByID(l).getLock(slavebuilder)
@@ -240,8 +250,7 @@ class TestBuild(unittest.TestCase):
 
         self.assertEqual(gotLocks, [True])
         self.assert_(('stepStarted', (), {}) in step.step_status.method_calls)
-        self.assert_("Interrupted" in b.text, b.text)
-        self.assertEqual(b.result, FAILURE)
+        self.assertEqual(b.result, EXCEPTION)
 
     def testStepDone(self):
         r = FakeRequest()

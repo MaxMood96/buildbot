@@ -1,4 +1,18 @@
-# -*- test-case-name: buildbot.test.test_svnpoller -*-
+# This file is part of Buildbot.  Buildbot is free software: you can
+# redistribute it and/or modify it under the terms of the GNU General Public
+# License as published by the Free Software Foundation, version 2.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc., 51
+# Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Copyright Buildbot Team Members
+
 
 # Based on the work of Dave Peticolas for the P4poll
 # Changed to svn (using xml.dom.minidom) by Niklaus Giger
@@ -55,7 +69,7 @@ class SVNPoller(base.ChangeSource, util.ComparableMixin):
                  svnuser=None, svnpasswd=None,
                  pollinterval=10*60, histmax=100,
                  svnbin='svn', revlinktmpl='', category=None, 
-                 project=None, cachepath=None):
+                 project='', cachepath=None):
         """
         @type  svnurl: string
         @param svnurl: the SVN URL that describes the repository and
@@ -87,8 +101,8 @@ class SVNPoller(base.ChangeSource, util.ComparableMixin):
                            which is passed to the split_file function.
 
                            If the function returns None, the file is ignored.
-                           Use this to indicate that the file is not a part
-                           of this project.
+                           Use this to indicate that the file is not relevant
+                           to this buildmaster.
                            
                            For example, if your repository puts the trunk in
                            trunk/... and branches are in places like
@@ -120,9 +134,9 @@ class SVNPoller(base.ChangeSource, util.ComparableMixin):
                                 branch = 'branches/' + pieces.pop(0)
                             else:
                                 return None # something weird
-                            projectname = pieces.pop(0)
-                            if projectname != 'ProjectA':
-                                return None # wrong project
+                            productname = pieces.pop(0)
+                            if productname != 'ProjectA':
+                                return None # wrong product
                             return (branch, '/'.join(pieces))
 
                            The default of split_file= is None, which

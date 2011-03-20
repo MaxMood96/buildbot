@@ -1,4 +1,18 @@
-# Portions copyright Canonical Ltd. 2009
+# This file is part of Buildbot.  Buildbot is free software: you can
+# redistribute it and/or modify it under the terms of the GNU General Public
+# License as published by the Free Software Foundation, version 2.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc., 51
+# Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Portions Copyright Buildbot Team Members
+# Portions Copyright Canonical Ltd. 2009
 
 import time
 from email.Message import Message
@@ -14,8 +28,6 @@ from buildbot.status.mail import MailNotifier
 from buildbot.interfaces import IBuildSlave, ILatentBuildSlave
 from buildbot.process.properties import Properties
 from buildbot.locks import LockAccess
-
-import sys
 
 class AbstractBuildSlave(pb.Avatar, service.MultiService):
     """This is the master-side representative for a remote buildbot slave.
@@ -251,6 +263,9 @@ class AbstractBuildSlave(pb.Avatar, service.MultiService):
                 state["admin"] = info.get("admin")
                 state["host"] = info.get("host")
                 state["access_uri"] = info.get("access_uri", None)
+                state["slave_environ"] = info.get("environ", {})
+                state["slave_basedir"] = info.get("basedir", None)
+                state["slave_system"] = info.get("system", None)
             def _info_unavailable(why):
                 # maybe an old slave, doesn't implement remote_getSlaveInfo
                 log.msg("BuildSlave.info_unavailable")
@@ -291,6 +306,9 @@ class AbstractBuildSlave(pb.Avatar, service.MultiService):
             self.slave_status.setVersion(state.get("version"))
             self.slave_status.setConnected(True)
             self.slave_commands = state.get("slave_commands")
+            self.slave_environ = state.get("slave_environ")
+            self.slave_basedir = state.get("slave_basedir")
+            self.slave_system = state.get("slave_system")
             self.slave = bot
             log.msg("bot attached")
             self.messageReceivedFromSlave()
@@ -384,6 +402,10 @@ class AbstractBuildSlave(pb.Avatar, service.MultiService):
     def perspective_keepalive(self):
         pass
 
+    def perspective_shutdown(self):
+        log.msg("slave %s wants to shut down" % self.slavename)
+        self.slave_status.setGraceful(True)
+
     def addSlaveBuilder(self, sb):
         self.slavebuilders[sb.builder_name] = sb
 
@@ -442,41 +464,78 @@ class AbstractBuildSlave(pb.Avatar, service.MultiService):
 
     def _gracefulChanged(self, graceful):
         """This is called when our graceful shutdown setting changes"""
-        if graceful:
-            active_builders = [sb for sb in self.slavebuilders.values()
-                               if sb.isBusy()]
-            if len(active_builders) == 0:
-                # Shut down!
-                self.shutdown()
+        self.maybeShutdown()
 
+    @defer.deferredGenerator
     def shutdown(self):
         """Shutdown the slave"""
-        # Look for a builder with a remote reference to the client side
-        # slave.  If we can find one, then call "shutdown" on the remote
-        # builder, which will cause the slave buildbot process to exit.
-        d = None
-        for b in self.slavebuilders.values():
-            if b.remote:
-                d = b.remote.callRemote("shutdown")
-                break
+        if not self.slave:
+            log.msg("no remote; slave is already shut down")
+            return
 
-        if d:
-            log.msg("Shutting down slave: %s" % self.slavename)
-            # The remote shutdown call will not complete successfully since the
-            # buildbot process exits almost immediately after getting the
-            # shutdown request.
-            # Here we look at the reason why the remote call failed, and if
-            # it's because the connection was lost, that means the slave
-            # shutdown as expected.
-            def _errback(why):
-                if why.check(pb.PBConnectionLost):
-                    log.msg("Lost connection to %s" % self.slavename)
-                else:
-                    log.err("Unexpected error when trying to shutdown %s" % self.slavename)
-            d.addErrback(_errback)
+        # First, try the "new" way - calling our own remote's shutdown
+        # method.  The method was only added in 0.8.3, so ignore NoSuchMethod
+        # failures.
+        def new_way():
+            d = self.slave.callRemote('shutdown')
+            d.addCallback(lambda _ : True) # successful shutdown request
+            def check_nsm(f):
+                f.trap(pb.NoSuchMethod)
+                return False # fall through to the old way
+            d.addErrback(check_nsm)
+            def check_connlost(f):
+                f.trap(pb.PBConnectionLost)
+                return True # the slave is gone, so call it finished
+            d.addErrback(check_connlost)
             return d
-        log.err("Couldn't find remote builder to shut down slave")
-        return defer.succeed(None)
+
+        wfd = defer.waitForDeferred(new_way())
+        yield wfd
+        if wfd.getResult():
+            return # done!
+
+        # Now, the old way.  Look for a builder with a remote reference to the
+        # client side slave.  If we can find one, then call "shutdown" on the
+        # remote builder, which will cause the slave buildbot process to exit.
+        def old_way():
+            d = None
+            for b in self.slavebuilders.values():
+                if b.remote:
+                    d = b.remote.callRemote("shutdown")
+                    break
+
+            if d:
+                log.msg("Shutting down (old) slave: %s" % self.slavename)
+                # The remote shutdown call will not complete successfully since the
+                # buildbot process exits almost immediately after getting the
+                # shutdown request.
+                # Here we look at the reason why the remote call failed, and if
+                # it's because the connection was lost, that means the slave
+                # shutdown as expected.
+                def _errback(why):
+                    if why.check(pb.PBConnectionLost):
+                        log.msg("Lost connection to %s" % self.slavename)
+                    else:
+                        log.err("Unexpected error when trying to shutdown %s" % self.slavename)
+                d.addErrback(_errback)
+                return d
+            log.err("Couldn't find remote builder to shut down slave")
+            return defer.succeed(None)
+        #wfd = defer.waitForDeferred(old_way())
+        #yield wfd
+        #wfd.getResult()
+
+    def maybeShutdown(self):
+        """Shut down this slave if it has been asked to shut down gracefully,
+        and has no active builders."""
+        if not self.slave_status.getGraceful():
+            return
+        active_builders = [sb for sb in self.slavebuilders.values()
+                           if sb.isBusy()]
+        if active_builders:
+            return
+        d = self.shutdown()
+        d.addErrback(log.err, 'error while shutting down slave')
 
 class BuildSlave(AbstractBuildSlave):
 
@@ -508,12 +567,7 @@ class BuildSlave(AbstractBuildSlave):
         """This is called when a build on this slave is finished."""
         # If we're gracefully shutting down, and we have no more active
         # builders, then it's safe to disconnect
-        if self.slave_status.getGraceful():
-            active_builders = [sb for sb in self.slavebuilders.values()
-                               if sb.isBusy()]
-            if len(active_builders) == 0:
-                # Shut down!
-                return self.shutdown()
+        self.maybeShutdown()
         return defer.succeed(None)
 
 class AbstractLatentBuildSlave(AbstractBuildSlave):
@@ -696,7 +750,8 @@ class AbstractLatentBuildSlave(AbstractBuildSlave):
         return d
 
     def disconnect(self):
-        d = self._soft_disconnect()
+        # This returns a Deferred but we don't use it
+        self._soft_disconnect() 
         # this removes the slave from all builders.  It won't come back
         # without a restart (or maybe a sighup)
         self.botmaster.slaveLost(self)

@@ -1,3 +1,18 @@
+# This file is part of Buildbot.  Buildbot is free software: you can
+# redistribute it and/or modify it under the terms of the GNU General Public
+# License as published by the Free Software Foundation, version 2.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc., 51
+# Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Copyright Buildbot Team Members
+
 
 # code to deliver build status through twisted.words (instant messaging
 # protocols: irc, etc)
@@ -582,9 +597,11 @@ class Contact(base.StatusReceiver):
         self.act("readies phasers")
 
     def command_DANCE(self, args, who):
-        reactor.callLater(1.0, self.send, "0-<")
-        reactor.callLater(3.0, self.send, "0-/")
-        reactor.callLater(3.5, self.send, "0-\\")
+        reactor.callLater(1.0, self.send, "<(^.^<)")
+        reactor.callLater(2.0, self.send, "<(^.^)>")
+        reactor.callLater(3.0, self.send, "(>^.^)>")
+        reactor.callLater(3.5, self.send, "(7^.^)7")
+        reactor.callLater(5.0, self.send, "(>^.^<)")
 
     def command_EXCITED(self, args, who):
         # like 'buildbot: destroy the sun!'

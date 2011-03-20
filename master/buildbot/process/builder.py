@@ -1,3 +1,18 @@
+# This file is part of Buildbot.  Buildbot is free software: you can
+# redistribute it and/or modify it under the terms of the GNU General Public
+# License as published by the Free Software Foundation, version 2.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc., 51
+# Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Copyright Buildbot Team Members
+
 
 import random, weakref
 from zope.interface import implements
@@ -391,6 +406,7 @@ class Builder(pb.Referenceable, service.MultiService):
         self.eventHorizon = setup.get('eventHorizon')
         self.mergeRequests = setup.get('mergeRequests', True)
         self.properties = setup.get('properties', {})
+        self.category = setup.get('category', None)
 
         # build/wannabuild slots: Build objects move along this sequence
         self.building = []
@@ -456,6 +472,9 @@ class Builder(pb.Referenceable, service.MultiService):
             diffs.append('logHorizon changed from %s to %s' % (self.logHorizon, setup['logHorizon']))
         if setup['eventHorizon'] != self.eventHorizon:
             diffs.append('eventHorizon changed from %s to %s' % (self.eventHorizon, setup['eventHorizon']))
+        if setup['category'] != self.category:
+            diffs.append('category changed from %r to %r' % (self.category, setup['category']))
+
         return diffs
 
     def __repr__(self):
@@ -615,6 +634,10 @@ class Builder(pb.Referenceable, service.MultiService):
         # anything to claim them. The old builder will be stopService'd,
         # which should make sure they don't start any new work
 
+        # this is kind of silly, but the builder status doesn't get updated
+        # when the config changes, yet it stores the category.  So:
+        self.builder_status.category = self.category
+
         # old.building (i.e. builds which are still running) is not migrated
         # directly: it keeps track of builds which were in progress in the
         # old Builder. When those builds finish, the old Builder will be
@@ -662,14 +685,18 @@ class Builder(pb.Referenceable, service.MultiService):
         return # all done
 
     def reclaimAllBuilds(self):
-        now = util.now()
-        brids = set()
-        for b in self.building:
-            brids.update([br.id for br in b.requests])
-        for b in self.old_building:
-            brids.update([br.id for br in b.requests])
-        self.db.claim_buildrequests(now, self.master_name,
-                                    self.master_incarnation, brids)
+        try:
+            now = util.now()
+            brids = set()
+            for b in self.building:
+                brids.update([br.id for br in b.requests])
+            for b in self.old_building:
+                brids.update([br.id for br in b.requests])
+            self.db.claim_buildrequests(now, self.master_name,
+                                        self.master_incarnation, brids)
+        except:
+            log.msg("Error in reclaimAllBuilds")
+            log.err()
 
     def getBuild(self, number):
         for b in self.building:

@@ -1,4 +1,18 @@
-# -*- test-case-name: buildbot.test.test_util -*-
+# This file is part of Buildbot.  Buildbot is free software: you can
+# redistribute it and/or modify it under the terms of the GNU General Public
+# License as published by the Free Software Foundation, version 2.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc., 51
+# Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Copyright Buildbot Team Members
+
 
 from twisted.python import threadable
 import time, re, string
@@ -130,6 +144,7 @@ def none_or_str(x):
 #   http://lists.debian.org/debian-python/2010/02/msg00016.html
 try:
     import json # python 2.6
+    assert json
 except ImportError:
     import simplejson as json # python 2.4 to 2.5
 try:
