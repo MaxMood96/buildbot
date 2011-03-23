@@ -688,9 +688,9 @@ class RevisionComparator(object):
     VCS use a plain counter for revisions (like SVN)
     while others use different concepts (see Git).
     """
-    
+
     # TODO (avivby): Should this be a zope interface?
-    
+
     def isRevisionEarlier(self, first_change, second_change):
         """Used for comparing 2 changes"""
         raise NotImplementedError
@@ -701,7 +701,7 @@ class RevisionComparator(object):
 
     def getSortingKey(self):
         raise NotImplementedError
-    
+
 class TimeRevisionComparator(RevisionComparator):
     def isRevisionEarlier(self, first, second):
         return first.when < second.when
@@ -716,7 +716,7 @@ class IntegerRevisionComparator(RevisionComparator):
     def isRevisionEarlier(self, first, second):
         try:
             return int(first.revision) < int(second.revision)
-        except TypeError:
+        except (TypeError, ValueError):
             return False
 
     def isValidRevision(self, revision):
