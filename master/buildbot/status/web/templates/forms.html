@@ -103,7 +103,20 @@
      <p>To force a build, fill out the following fields and
         push the 'Force Build' button</p>
   {% endif %}
-  <p>'Branch to build' is relative to http://svn.python.org/projects/python.</p>
+
+  <p><strong>For custom builders</strong>, "<em>Branch/repo path</em>" is
+     the repository's relative path to http://hg.python.org/ (for example,
+     "<tt>features/pep-1234</tt>").  The build will be done from named branch
+     "default" unless you select a specific revision, tag or branch name in
+     "<em>Revision to build</em>".
+     </p>
+
+  <p><strong>For regular builders</strong>, "<em>Branch/repo path</em>" is
+     the named branch to build in the main repository.  For readability,
+     it is advised to build the branch associated with the builder's category
+     (for example, only build the named branch "3.2" when in the "3.2"
+     category).
+     </p>
   
   {% if authz.needAuthForm('forceBuild') %}
     {{ auth() }}
@@ -121,13 +134,14 @@
      <input type='text' name='comments' />
   </div>
   <div class="row">
-     <span class="label">Branch to build:</span>
+     <span class="label">Branch/repo path:</span>
      <input type='text' name='branch' />
   </div>
   <div class="row">
      <span class="label">Revision to build:</span>
      <input type='text' name='revision' />
   </div>
+<!-- Disabled since useless
   <div class="row">
      <span class="label">Repository to build:</span>
      <input type='text' name='repository' />
@@ -145,6 +159,7 @@
      <span class="field"><input type="text" name="property{{ i }}value" /></span>
   </div>
   {% endfor %}
+-->
   
   <input type="submit" value="Force Build" /> 
  </form>
