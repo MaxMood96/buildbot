@@ -345,7 +345,7 @@ class WebStatus(service.MultiService):
             self.provide_feeds = provide_feeds
 
     def setupUsualPages(self, numbuilds, num_events, num_events_max):
-        #self.putChild("", IndexOrWaterfallRedirection())
+        self.putChild("", Redirect("waterfall"))
         self.putChild("waterfall", WaterfallStatusResource(num_events=num_events,
                                         num_events_max=num_events_max))
         self.putChild("grid", GridStatusResource())

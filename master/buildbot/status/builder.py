@@ -188,8 +188,9 @@ class BuilderStatus(styles.Versioned):
         # then fall back to loading it from disk
         filename = self.makeBuildFilename(number)
         try:
-            log.msg("Loading builder %s's build %d from on-disk pickle"
-                % (self.name, number))
+            # disabled MvL
+            #log.msg("Loading builder %s's build %d from on-disk pickle"
+            #    % (self.name, number))
             build = load(open(filename, "rb"))
             build.setProcessObjects(self, self.master)
 

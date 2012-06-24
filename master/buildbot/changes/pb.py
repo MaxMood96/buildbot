@@ -14,6 +14,7 @@
 # Copyright Buildbot Team Members
 
 
+import urllib
 from twisted.python import log
 from twisted.internet import defer
 
@@ -24,9 +25,10 @@ from buildbot import config
 
 class ChangePerspective(NewCredPerspective):
 
-    def __init__(self, master, prefix):
+    def __init__(self, master, prefix, revlinktmpl=''):
         self.master = master
         self.prefix = prefix
+        self.revlinktmpl = revlinktmpl
 
     def attached(self, mind):
         return self
@@ -38,6 +40,10 @@ class ChangePerspective(NewCredPerspective):
 
         if 'revlink' in changedict and not changedict['revlink']:
             changedict['revlink'] = ''
+            if self.revlinktmpl:
+                revision = changedict.get('revision')
+                if revision:
+                    changedict['revlink'] = self.revlinktmpl % urllib.quote_plus(str(revision))
         if 'repository' in changedict and not changedict['repository']:
             changedict['repository'] = ''
         if 'project' in changedict and not changedict['project']:
