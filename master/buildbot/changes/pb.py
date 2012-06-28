@@ -103,7 +103,7 @@ class PBChangeSource(config.ReconfigurableServiceMixin, base.ChangeSource):
     compare_attrs = ["user", "passwd", "port", "prefix", "port"]
 
     def __init__(self, user="change", passwd="changepw", port=None,
-            prefix=None):
+            prefix=None, revlinktmpl=''):
 
         self.user = user
         self.passwd = passwd
@@ -111,6 +111,7 @@ class PBChangeSource(config.ReconfigurableServiceMixin, base.ChangeSource):
         self.prefix = prefix
         self.registration = None
         self.registered_port = None
+        self.revlinktmpl = revlinktmpl
 
     def describe(self):
         portname = self.registered_port
@@ -163,4 +164,4 @@ class PBChangeSource(config.ReconfigurableServiceMixin, base.ChangeSource):
 
     def getPerspective(self, mind, username):
         assert username == self.user
-        return ChangePerspective(self.master, self.prefix)
+        return ChangePerspective(self.master, self.prefix, self.revlinktmpl)
