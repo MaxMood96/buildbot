@@ -207,16 +207,13 @@ class Status(config.ReconfigurableServiceMixin, service.MultiService):
         return self.master.allSchedulers()
 
     def getBuilderNames(self, categories=None):
-        if categories == None:
-            return util.naturalSort(self.botmaster.builderNames) # don't let them break it
-        
         l = []
         # respect addition order
         for name in self.botmaster.builderNames:
             bldr = self.botmaster.builders[name]
-            if bldr.config.category in categories:
-                l.append(name)
-        return util.naturalSort(l)
+            if categories is None or bldr.config.category in categories:
+                l.append((bldr.config.category, name))
+        return [name for cat, name in sorted(l)]
 
     def getBuilder(self, name):
         """
