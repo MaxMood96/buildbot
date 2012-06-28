@@ -104,20 +104,13 @@
      <p>To force a build, fill out the following fields and
         push the 'Force Build' button</p>
   {% endif %}
-  <p><strong>For custom builders</strong>, "<em>Branch/repo path</em>" is
-     the repository's relative path to http://hg.python.org/ (for example,
+  <p><strong>For custom builders</strong>, "<em>Repo path</em>" is
+     your repository's relative path to http://hg.python.org/ (for example,
      "<tt>features/pep-1234</tt>").  The build will be done from named branch
      "default" unless you select a specific revision, tag or branch name in
      "<em>Revision to build</em>".
      </p>
 
-  <p><strong>For regular builders</strong>, "<em>Branch/repo path</em>" is
-     the named branch to build in the main repository.  For readability,
-     it is advised to build the branch associated with the builder's category
-     (for example, only build the named branch "3.2" when in the "3.2"
-     category).
-     </p>
-  
   <input type='hidden' name='forcescheduler' value='{{sch.name}}' />
   {% for f in sch.all_fields %}
     {% if f.name != "username" or not authz.authenticated(request) %}
