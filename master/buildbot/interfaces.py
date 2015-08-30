@@ -33,10 +33,6 @@ class BuildSlaveTooOldError(Exception):
 class LatentBuildSlaveFailedToSubstantiate(Exception):
     pass
 
-# other exceptions
-class BuildbotNotRunningError(Exception):
-    pass
-
 class IChangeSource(Interface):
     """
     Service which feeds Change objects to the changemaster. When files or
@@ -455,8 +451,8 @@ class IBuildStatus(Interface):
         'forced', and 'periodic' are the most likely values. 'try' will be
         added in the future."""
 
-    def getSourceStamp():
-        """Return a SourceStamp object which can be used to re-create
+    def getSourceStamps():
+        """Return a list of SourceStamp objects which can be used to re-create
         the source tree that this build used.
 
         This method will return None if the source information is no longer
@@ -1123,7 +1119,7 @@ class IRenderable(Interface):
     """
 
     def getRenderingFor(iprops):
-        """Return the interpolation with the given properties
+        """Return a deferred that fires with interpolation with the given properties
 
         @param iprops: the L{IProperties} provider supplying the properties.
         """
@@ -1204,3 +1200,17 @@ class IProperties(Interface):
 
 class IScheduler(Interface):
     pass
+
+class ITriggerableScheduler(Interface):
+    """
+    A scheduler that can be triggered by buildsteps.
+    """
+
+    def trigger(sourcestamps, set_props=None):
+        """Trigger a build with the given source stamp and properties.
+        """
+
+class IBuildStepFactory(Interface):
+    def buildStep():
+        """
+        """

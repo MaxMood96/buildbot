@@ -141,7 +141,7 @@ class AbstractBuildSlave(config.ReconfigurableServiceMixin, pb.Avatar,
         if not self.locks:
             return True
         for lock, access in self.locks:
-            if not lock.isAvailable(access):
+            if not lock.isAvailable(self, access):
                 return False
         return True
 
@@ -270,6 +270,11 @@ class AbstractBuildSlave(config.ReconfigurableServiceMixin, pb.Avatar,
         if self.slave_status:
             self.slave_status.recordConnectTime()
 
+        # try to use TCP keepalives
+        try:
+            mind.broker.transport.setTcpKeepAlive(1)
+        except:
+            pass
 
         if self.isConnected():
             # duplicate slave - send it to arbitration
@@ -636,7 +641,7 @@ class AbstractBuildSlave(config.ReconfigurableServiceMixin, pb.Avatar,
         """This is called when our graceful shutdown setting changes"""
         self.maybeShutdown()
 
-    @defer.deferredGenerator
+    @defer.inlineCallbacks
     def shutdown(self):
         """Shutdown the slave"""
         if not self.slave:
@@ -659,9 +664,7 @@ class AbstractBuildSlave(config.ReconfigurableServiceMixin, pb.Avatar,
             d.addErrback(check_connlost)
             return d
 
-        wfd = defer.waitForDeferred(new_way())
-        yield wfd
-        if wfd.getResult():
+        if (yield new_way()):
             return # done!
 
         # Now, the old way.  Look for a builder with a remote reference to the
@@ -691,9 +694,7 @@ class AbstractBuildSlave(config.ReconfigurableServiceMixin, pb.Avatar,
                 return d
             log.err("Couldn't find remote builder to shut down slave")
             return defer.succeed(None)
-        wfd = defer.waitForDeferred(old_way())
-        yield wfd
-        wfd.getResult()
+        yield old_way()
 
     def maybeShutdown(self):
         """Shut down this slave if it has been asked to shut down gracefully,
@@ -758,6 +759,7 @@ class AbstractLatentBuildSlave(AbstractBuildSlave):
     substantiated = False
     substantiation_deferred = None
     substantiation_build = None
+    insubstantiating = False
     build_wait_timer = None
     _shutdown_callback_handle = None
 
@@ -828,7 +830,7 @@ class AbstractLatentBuildSlave(AbstractBuildSlave):
         return d
 
     def attached(self, bot):
-        if self.substantiation_deferred is None:
+        if self.substantiation_deferred is None and self.build_wait_timeout >= 0:
             msg = 'Slave %s received connection while not trying to ' \
                     'substantiate.  Disconnecting.' % (self.slavename,)
             log.msg(msg)
@@ -870,6 +872,11 @@ class AbstractLatentBuildSlave(AbstractBuildSlave):
         subject = "Buildbot: buildslave %s never substantiated" % self.slavename
         return self._mail_missing_message(subject, text)
 
+    def canStartBuild(self):
+        if self.insubstantiating:
+            return False
+        return AbstractBuildSlave.canStartBuild(self)
+
     def buildStarted(self, sb):
         assert self.substantiated
         self._clearBuildWaitTimer()
@@ -880,7 +887,10 @@ class AbstractLatentBuildSlave(AbstractBuildSlave):
 
         self.building.remove(sb.builder_name)
         if not self.building:
-            self._setBuildWaitTimer()
+            if self.build_wait_timeout == 0:
+                self.insubstantiate()
+            else:
+                self._setBuildWaitTimer()
 
     def _clearBuildWaitTimer(self):
         if self.build_wait_timer is not None:
@@ -890,10 +900,14 @@ class AbstractLatentBuildSlave(AbstractBuildSlave):
 
     def _setBuildWaitTimer(self):
         self._clearBuildWaitTimer()
+        if self.build_wait_timeout < 0:
+            return
         self.build_wait_timer = reactor.callLater(
             self.build_wait_timeout, self._soft_disconnect)
 
+    @defer.inlineCallbacks
     def insubstantiate(self, fast=False):
+        self.insubstantiating = True
         self._clearBuildWaitTimer()
         d = self.stop_instance(fast)
         if self._shutdown_callback_handle is not None:
@@ -902,9 +916,13 @@ class AbstractLatentBuildSlave(AbstractBuildSlave):
             reactor.removeSystemEventTrigger(handle)
         self.substantiated = False
         self.building.clear() # just to be sure
-        return d
+        yield d
+        self.insubstantiating = False
 
     def _soft_disconnect(self, fast=False):
+        if not self.build_wait_timeout < 0:
+            return AbstractBuildSlave.disconnect(self)
+
         d = AbstractBuildSlave.disconnect(self)
         if self.slave is not None:
             # this could be called when the slave needs to shut down, such as

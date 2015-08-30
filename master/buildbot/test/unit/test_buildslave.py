@@ -63,7 +63,7 @@ class TestAbstractBuildSlave(unittest.TestCase):
             self.ConcreteBuildSlave('bot', 'pass',
                     notify_on_missing=['a@b.com', 13]))
 
-    @defer.deferredGenerator
+    @defer.inlineCallbacks
     def do_test_reconfigService(self, old, old_port, new, new_port):
         master = self.master = fakemaster.make_master()
         old.master = master
@@ -78,12 +78,9 @@ class TestAbstractBuildSlave(unittest.TestCase):
         new_config.slavePortnum = new_port
         new_config.slaves = [ new ]
 
-        wfd = defer.waitForDeferred(
-            old.reconfigService(new_config))
-        yield wfd
-        wfd.getResult()
+        yield old.reconfigService(new_config)
 
-    @defer.deferredGenerator
+    @defer.inlineCallbacks
     def test_reconfigService_attrs(self):
         old = self.ConcreteBuildSlave('bot', 'pass',
                 max_builds=2,
@@ -100,10 +97,7 @@ class TestAbstractBuildSlave(unittest.TestCase):
 
         old.updateSlave = mock.Mock(side_effect=lambda : defer.succeed(None))
 
-        wfd = defer.waitForDeferred(
-            self.do_test_reconfigService(old, 'tcp:1234', new, 'tcp:1234'))
-        yield wfd
-        wfd.getResult()
+        yield self.do_test_reconfigService(old, 'tcp:1234', new, 'tcp:1234')
 
         self.assertEqual(old.max_builds, 3)
         self.assertEqual(old.notify_on_missing, ['her@me.com'])
@@ -113,51 +107,35 @@ class TestAbstractBuildSlave(unittest.TestCase):
         self.assertEqual(self.master.pbmanager._registrations, [])
         self.assertTrue(old.updateSlave.called)
 
-    @defer.deferredGenerator
+    @defer.inlineCallbacks
     def test_reconfigService_has_properties(self):
         old = self.ConcreteBuildSlave('bot', 'pass')
-
-        wfd = defer.waitForDeferred(
-            self.do_test_reconfigService(old, 'tcp:1234', old, 'tcp:1234'))
-        yield wfd
-        wfd.getResult()
-
+        yield self.do_test_reconfigService(old, 'tcp:1234', old, 'tcp:1234')
         self.assertTrue(old.properties.getProperty('slavename'), 'bot')
 
-    @defer.deferredGenerator
+    @defer.inlineCallbacks
     def test_reconfigService_initial_registration(self):
         old = self.ConcreteBuildSlave('bot', 'pass')
-
-        wfd = defer.waitForDeferred(
-            self.do_test_reconfigService(old, None, old, 'tcp:1234'))
-        yield wfd
-        wfd.getResult()
-
+        yield self.do_test_reconfigService(old, None, old, 'tcp:1234')
         self.assertEqual(self.master.pbmanager._registrations, [('tcp:1234', 'bot', 'pass')])
 
-    @defer.deferredGenerator
+    @defer.inlineCallbacks
     def test_reconfigService_reregister_password(self):
         old = self.ConcreteBuildSlave('bot', 'pass')
         new = self.ConcreteBuildSlave('bot', 'newpass')
 
-        wfd = defer.waitForDeferred(
-            self.do_test_reconfigService(old, 'tcp:1234', new, 'tcp:1234'))
-        yield wfd
-        wfd.getResult()
+        yield self.do_test_reconfigService(old, 'tcp:1234', new, 'tcp:1234')
 
         self.assertEqual(old.password, 'newpass')
         self.assertEqual(self.master.pbmanager._unregistrations, [('tcp:1234', 'bot')])
         self.assertEqual(self.master.pbmanager._registrations, [('tcp:1234', 'bot', 'newpass')])
 
-    @defer.deferredGenerator
+    @defer.inlineCallbacks
     def test_reconfigService_reregister_port(self):
         old = self.ConcreteBuildSlave('bot', 'pass')
         new = self.ConcreteBuildSlave('bot', 'pass')
 
-        wfd = defer.waitForDeferred(
-            self.do_test_reconfigService(old, 'tcp:1234', new, 'tcp:5678'))
-        yield wfd
-        wfd.getResult()
+        yield self.do_test_reconfigService(old, 'tcp:1234', new, 'tcp:5678')
 
         self.assertEqual(self.master.pbmanager._unregistrations, [('tcp:1234', 'bot')])
         self.assertEqual(self.master.pbmanager._registrations, [('tcp:5678', 'bot', 'pass')])
@@ -247,5 +225,3 @@ class TestAbstractBuildSlave(unittest.TestCase):
         lock = locks.SlaveLock('lock')
         bs = self.ConcreteBuildSlave('bot', 'pass', locks = [lock])
         bs.setServiceParent(botmaster)
-
-    test_setServiceParent_slaveLocks.todo = "SlaveLock not support for slave lock"
