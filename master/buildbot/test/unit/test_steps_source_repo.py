@@ -105,7 +105,7 @@ class TestRepo(sourcesteps.SourceStepMixin, unittest.TestCase):
                                 logEnviron=self.logEnviron))
             + 1,
             Expect('rmdir', dict(dir='wkdir',
-                                 logEnviron=self.logEnviron))
+                                 logEnviron=self.logEnviron, timeout=1200))
             + 0,
             Expect('mkdir', dict(dir='wkdir',
                                  logEnviron=self.logEnviron))
@@ -178,8 +178,7 @@ class TestRepo(sourcesteps.SourceStepMixin, unittest.TestCase):
         """repo sync with manifest_override_url property set
         download via wget
         """
-        self.mySetupStep(manifestOverrideUrl=
-                         "http://u.rl/test.manifest",
+        self.mySetupStep(manifestOverrideUrl="http://u.rl/test.manifest",
                          syncAllBranches=True)
         self.expectClobber()
         override_commands = [
@@ -187,7 +186,7 @@ class TestRepo(sourcesteps.SourceStepMixin, unittest.TestCase):
                 'stat', dict(file='wkdir/http://u.rl/test.manifest',
                              logEnviron=False)),
             self.ExpectShell(logEnviron=False, command=['wget',
-                             'http://u.rl/test.manifest',
+                                                        'http://u.rl/test.manifest',
                                                         '-O', 'manifest_override.xml']),
             self.ExpectShell(
                 logEnviron=False, workdir='wkdir/.repo',
@@ -202,8 +201,7 @@ class TestRepo(sourcesteps.SourceStepMixin, unittest.TestCase):
         """repo sync with manifest_override_url property set
         copied from local FS
         """
-        self.mySetupStep(manifestOverrideUrl=
-                         "test.manifest",
+        self.mySetupStep(manifestOverrideUrl="test.manifest",
                          syncAllBranches=True)
         self.expectClobber()
         override_commands = [
@@ -248,7 +246,7 @@ class TestRepo(sourcesteps.SourceStepMixin, unittest.TestCase):
                 command=['tar', '-z', '-xvf', '/tarball.tgz']) + 1,
             self.ExpectShell(command=['rm', '-f', '/tarball.tgz']) + 1,
             Expect('rmdir', dict(dir='wkdir/.repo',
-                                 logEnviron=False))
+                                 logEnviron=False, timeout=1200))
             + 1)
         self.expectRepoSync()
         self.expectCommands(self.ExpectShell(command=['stat', '-c%Y', '/tarball.tgz'])
@@ -311,7 +309,7 @@ class TestRepo(sourcesteps.SourceStepMixin, unittest.TestCase):
                 command=['rm', '-f', '/tarball.tar']) + 0,
             Expect(
                 'rmdir', dict(dir='wkdir/.repo',
-                              logEnviron=False))
+                              logEnviron=False, timeout=1200))
             + 0)
         self.expectRepoSync()
         self.expectCommands(self.ExpectShell(command=['stat', '-c%Y', '/tarball.' + suffix])

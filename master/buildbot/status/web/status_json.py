@@ -114,11 +114,11 @@ def FilterOut(data):
     if isinstance(data, (list, tuple)):
         # Recurse in every items and filter them out.
         items = map(FilterOut, data)
-        if not filter(lambda x: not x in ('', False, None, [], {}, ()), items):
+        if not filter(lambda x: x not in ('', False, None, [], {}, ()), items):
             return None
         return items
     elif isinstance(data, dict):
-        return dict(filter(lambda x: not x[1] in ('', False, None, [], {}, ()),
+        return dict(filter(lambda x: x[1] not in ('', False, None, [], {}, ()),
                            [(k, FilterOut(v)) for (k, v) in data.iteritems()]))
     else:
         return data
@@ -175,10 +175,10 @@ class JsonResource(resource.Resource):
             if isinstance(data, unicode):
                 data = data.encode("utf-8")
             request.setHeader("Access-Control-Allow-Origin", "*")
+            request.setHeader("content-type", self.contentType)
             if RequestArgToBool(request, 'as_text', False):
-                request.setHeader("content-type", 'text/plain')
+                request.setHeader("X-Content-Type-Options", "nosniff")
             else:
-                request.setHeader("content-type", self.contentType)
                 request.setHeader("content-disposition",
                                   "attachment; filename=\"%s.json\"" % request.path)
             # Make sure we get fresh pages.
@@ -322,7 +322,7 @@ def ToHtml(text):
                     indent -= 2
 
         if line.startswith('/'):
-            if not '?' in line:
+            if '?' not in line:
                 line_full = line + '?as_text=1'
             else:
                 line_full = line + '&as_text=1'
@@ -650,7 +650,10 @@ class SlaveJsonResource(JsonResource):
             builds = []
             builder_status = self.status.getBuilder(builderName)
             cache_size = builder_status.master.config.caches['Builds']
-            numbuilds = int(request.args.get('numbuilds', [cache_size - 1])[0])
+            try:
+                numbuilds = int(request.args.get('numbuilds', [cache_size - 1])[0])
+            except ValueError:
+                numbuilds = 10
             for i in range(1, numbuilds):
                 build_status = builder_status.getBuild(-i)
                 if not build_status or not build_status.isFinished():

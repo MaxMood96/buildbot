@@ -194,7 +194,7 @@ class StepBox(components.Adapter):
 
         for num in range(len(logs)):
             name = logs[num].getName()
-            if logs[num].hasContents():
+            if logs[num].old_hasContents():
                 url = urlbase + "/logs/%s" % urllib.quote(name)
             else:
                 url = None
@@ -239,7 +239,7 @@ class SpacerBox(components.Adapter):
     implements(IBox)
 
     def getBox(self, req):
-        #b = Box(["spacer"], "white")
+        # b = Box(["spacer"], "white")
         b = Box([])
         b.spacer = True
         return b
@@ -338,6 +338,8 @@ class WaterfallHelp(HtmlResource):
         current_reload_time = request.args.get("reload", ["none"])
         if current_reload_time:
             current_reload_time = current_reload_time[0]
+        if not current_reload_time.isdigit():
+            current_reload_time = "none"
         if current_reload_time not in [t[0] for t in times]:
             times.insert(0, (current_reload_time, current_reload_time))
 
@@ -574,6 +576,16 @@ class WaterfallStatusResource(HtmlResource):
 
         if self.get_reload_time(request) is not None:
             ctx['no_reload_page'] = with_args(request, remove_args=["reload"])
+
+        # get alphabetically sorted list of all categories
+        categories = set()
+        builderNames = status.getBuilderNames()
+        for builderName in builderNames:
+            builder = status.getBuilder(builderName)
+            categories.add(builder.category)
+        categories = list(categories)
+        categories.sort()
+        ctx['categories'] = categories
 
         template = request.site.buildbot_service.templates.get_template("waterfall.html")
         data = template.render(**ctx)

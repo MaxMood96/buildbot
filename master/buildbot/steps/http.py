@@ -78,8 +78,6 @@ class HTTPStep(BuildStep):
         for p in HTTPStep.requestsParams:
             v = kwargs.pop(p, None)
             self.__dict__[p] = v
-            if v is not None:
-                self.requestkwargs[p] = v
         if method not in ('POST', 'GET', 'PUT', 'DELETE', 'HEAD', 'OPTIONS'):
             config.error("Wrong method given: '%s' is not known" % method)
         if description is not None:
@@ -95,6 +93,11 @@ class HTTPStep(BuildStep):
     def doRequest(self):
         # create a new session if it doesn't exist
         self.session = getSession()
+
+        for p in self.__dict__ and self.requestsParams:
+            v = self.__dict__[p]
+            if v is not None:
+                self.requestkwargs[p] = v
 
         log = self.addLog('log')
 
@@ -131,6 +134,7 @@ class HTTPStep(BuildStep):
 
         log.finish()
 
+        self.descriptionDone = "Status code: %d" % r.status_code
         self.step_status.setText(self.describe(done=True))
         if (r.status_code < 400):
             self.finished(SUCCESS)
@@ -156,6 +160,7 @@ class HTTPStep(BuildStep):
             log.addHeader('\t%s: %s\n' % (k, v))
 
         log.addStdout(' ------ Content ------\n%s' % response.text)
+        self.addLog('content').addStdout(response.text)
 
     def describe(self, done=False):
         if done:

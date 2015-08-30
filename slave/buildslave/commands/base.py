@@ -70,7 +70,8 @@ command_version = "2.16"
 #  >= 2.14: RemoveDirectory can delete multiple directories
 #  >= 2.15: 'interruptSignal' option is added to SlaveShellCommand
 #  >= 2.16: 'sigtermTime' option is added to SlaveShellCommand
-#  >= 2.17: listdir command added to read a directory
+#  >= 2.16: runprocess supports obfuscation via tuples (#1748)
+#  >= 2.16: listdir command added to read a directory
 
 
 class Command:
@@ -135,8 +136,8 @@ class Command:
     requiredArgs = []
     debug = False
     interrupted = False
-    running = False  # set by Builder, cleared on shutdown or when the
-                    # Deferred fires
+    # set by Builder, cleared on shutdown or when the Deferred fires
+    running = False
 
     _reactor = reactor
 
@@ -146,7 +147,7 @@ class Command:
         self.args = args
         self.startTime = None
 
-        missingArgs = filter(lambda arg: not arg in args, self.requiredArgs)
+        missingArgs = filter(lambda arg: arg not in args, self.requiredArgs)
         if missingArgs:
             raise ValueError("%s is missing args: %s" %
                              (self.__class__.__name__, ", ".join(missingArgs)))

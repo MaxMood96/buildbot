@@ -737,32 +737,49 @@ work.
 GitHub hook
 ###########
 
-The GitHub hook is simple and takes no options. ::
+.. note::
+
+    There is a standalone HTTP server available for receiving GitHub notifications as well: :file:`contrib/github_buildbot.py`.
+    This script may be useful in cases where you cannot expose the WebStatus for public consumption.
+
+The GitHub hook is simple and takes no options:
+
+.. code-block:: python
 
     c['status'].append(html.WebStatus(...,
-                       change_hook_dialects={ 'github' : True }))
+                                      change_hook_dialects={'github': True},
+                                      ...))
 
-With this set up, add a Post-Receive URL for the project in the GitHub
-administrative interface, pointing to ``/change_hook/github`` relative to
-the root of the web status.  For example, if the grid URL is
-``http://builds.mycompany.com/bbot/grid``, then point GitHub to
-``http://builds.mycompany.com/bbot/change_hook/github``. To specify a project
-associated to the repository, append ``?project=name`` to the URL.
+Having added this line, you should add a webhook for your GitHub project (see `Creating Webhooks page at GitHub <https://developer.github.com/webhooks/creating/>`_).
+The parameters are:
 
-Note that there is a standalone HTTP server available for receiving GitHub
-notifications, as well: :file:`contrib/github_buildbot.py`.  This script may be
-useful in cases where you cannot expose the WebStatus for public consumption.
+:guilabel:`Payload URL`
+    This URL should point to ``/change_hook/github`` relative to the root of the web status.
+    For example, if the grid URL is ``http://builds.example.com/bbot/grid``, then point GitHub to ``http://builds.example.com/bbot/change_hook/github``.
+    To specify a project associated to the repository, append ``?project=name`` to the URL.
+
+:guilabel:`Content Type`
+    Specify ``application/x-www-form-urlencoded``.  JSON is not currently not supported.
+
+:guilabel:`Secret`
+    Any value.  Currently this parameter is not supported.
+
+:guilabel:`Which events would you like to trigger this webhook?`
+    Leave the default -- ``Just the push event`` -- other kind of events are not currently supported.
+
+And then press the ``Add Webhook`` button.
 
 .. warning::
 
     The incoming HTTP requests for this hook are not authenticated by default.
-    Anyone who can access the web status can "fake" a request from
-    GitHub, potentially causing the buildmaster to run arbitrary code.
+    Anyone who can access the web status can "fake" a request from GitHub, potentially causing the buildmaster to run arbitrary code.
 
-To protect URL against unauthorized access you should use ``change_hook_auth`` option ::
+To protect URL against unauthorized access you should use ``change_hook_auth`` option::
 
     c['status'].append(html.WebStatus(...,
-                                      change_hook_auth=["file:changehook.passwd"]))
+                                      change_hook_auth=["file:changehook.passwd"],
+                                      ...
+                                     ))
 
 And create a file ``changehook.passwd``
 
@@ -770,11 +787,11 @@ And create a file ``changehook.passwd``
 
     user:password
 
-Then, create a GitHub service hook (see https://help.github.com/articles/post-receive-hooks) with a WebHook URL like ``http://user:password@builds.mycompany.com/bbot/change_hook/github``.
+Then change the the ``Payload URL`` of your GitHub webhook to ``http://user:password@builds.example.com/bbot/change_hook/github``.
 
-See the `documentation <https://twistedmatrix.com/documents/current/core/howto/cred.html>`_ for twisted cred for more option to pass to ``change_hook_auth``.
+See the `documentation for twisted cred <https://twistedmatrix.com/documents/current/core/howto/cred.html>`_ for more options to pass to ``change_hook_auth``.
 
-Note that not using ``change_hook_auth`` can expose you to security risks.
+Note that not using ``change_hook_auth`` may expose you to security risks.
 
 BitBucket hook
 ##############
@@ -1060,8 +1077,8 @@ For example, if only short emails are desired (e.g., for delivery to phones) ::
                       messageFormatter=messageFormatter)
 
 Another example of a function delivering a customized html email
-containing the last 80 log lines of logs of the last build step is
-given below::
+containing the last 80 log lines of logs of the last build step that
+finished is given below::
 
     from buildbot.status.builder import Results
 
@@ -1122,8 +1139,18 @@ given below::
                             text.append(u'<tr><td>%s:</td></tr>' % file['name'] )
                         text.append(u'</table>')
             text.append(u'<br>')
-            # get log for last step
-            logs = build.getLogs()
+            # get all the steps in build in reversed order
+            rev_steps = reversed(build.getSteps())
+            # find the last step that finished
+            for step in rev_steps:
+                if step.isFinished():
+                    break
+            # get logs for the last finished step
+            if step.isFinished():
+                logs = step.getLogs()
+            # No step finished, loop just exhausted itself; so as a special case we fetch all logs
+            else:
+                logs = build.getLogs()
             # logs within a step are in reverse order. Search back until we find stdio
             for log in reversed(logs):
                 if log.getName() == 'stdio':
@@ -1642,7 +1669,10 @@ GerritStatusPush
 
 .. py:class:: buildbot.status.status_gerrit.GerritStatusPush
 
-::
+:class:`GerritStatusPush` sends review of the :class:`Change` back to the Gerrit server, optionally also sending a message when a build is started.
+GerritStatusPush can send a separate review for each build that completes, or a single review summarizing the results for all of the builds.
+
+An example usage::
 
     from buildbot.status.status_gerrit import GerritStatusPush
     from buildbot.status.builder import Results, SUCCESS, RETRY
@@ -1707,23 +1737,39 @@ GerritStatusPush
                                         summaryCB=gerritSummaryCB,
                                         summaryArg=c['buildbotURL']))
 
-GerritStatusPush sends review of the :class:`Change` back to the Gerrit server,
-optionally also sending a message when a build is started. GerritStatusPush
-can send a separate review for each build that completes, or a single review
-summarizing the results for all of the builds. By default, a single summary
-review is sent; that is, a default summaryCB is provided, but no reviewCB or
-startCB.
+Parameters:
 
-``reviewCB``, if specified, determines the message and score to give when
-sending a review for each separate build. It should return a tuple of
-(message, verified, reviewed).
+``server`` (string)
+    Gerrit SSH server's address to use for push event notifications.
 
-If ``startCB`` is specified, it should return a message. This message will be
-sent to the Gerrit server when each build is started.
+``username`` (string)
+    Gerrit SSH server's username.
 
-``summaryCB``, if specified, determines the message and score to give when
-sending a single review summarizing all of the builds. It should return a
-tuple of (message, verified, reviewed).
+``identity_file`` (string, optional)
+    Gerrit SSH identity file.
+
+``port`` (int, optional)
+    Gerrit SSH server's port (default: 29418)
+
+``reviewCB``
+    If specified, determines the message and score to give when sending a review for each separate build.
+    It should return a tuple of :samp:`({message}, {verified}, {reviewed})`.
+
+``startCB``
+    If specified, it should return a message.
+    This message will be sent to the Gerrit server when each build is started.
+
+``summaryCB``
+    If specified, determines the message and score to give when sending a single review summarizing all of the builds.
+    It should return a tuple of :samp:`({message}, {verified}, {reviewed})`.
+
+.. note::
+
+   By default, a single summary review is sent; that is, a default :py:func:`summaryCB` is provided, but no :py:func:`reviewCB` or :py:func:`startCB`.
+
+.. seealso::
+
+   :file:`master/docs/examples/git_gerrit.cfg` and :file:`master/docs/examples/repo_gerrit.cfg` in the Buildbot distribution provide a full example setup of Git+Gerrit or Repo+Gerrit of :bb:status:`GerritStatusPush`.
 
 .. bb:status:: GitHubStatus
 

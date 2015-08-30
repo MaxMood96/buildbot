@@ -74,6 +74,14 @@ class SVN(Source):
         self.method = self._getMethod()
         self.stdio_log = self.addLogForRemoteCommands("stdio")
 
+        # if the version is new enough, and the password is set, then obfuscate it
+        if self.password is not None:
+            if not self.slaveVersionIsOlderThan('shell', '2.16'):
+                self.password = ('obfuscated', self.password, 'XXXXXX')
+            else:
+                log.msg("Slave does not understand obfuscation; "
+                        "svn password will be logged")
+
         d = self.checkSvn()
 
         def checkInstall(svnInstalled):
@@ -182,7 +190,7 @@ class SVN(Source):
             if self.username:
                 export_cmd.extend(['--username', self.username])
             if self.password is not None:
-                export_cmd.extend(['--password', ('obfuscated', self.password, 'XXXXXX')])
+                export_cmd.extend(['--password', self.password])
             if self.extra_args:
                 export_cmd.extend(self.extra_args)
             export_cmd.extend(['source', self.workdir])
@@ -206,13 +214,13 @@ class SVN(Source):
         d.addCallback(self.finished)
         return d
 
-    def _dovccmd(self, command, collectStdout=False, abandonOnFailure=True):
+    def _dovccmd(self, command, collectStdout=False, collectStderr=False, abandonOnFailure=True):
         assert command, "No command specified"
         command.extend(['--non-interactive', '--no-auth-cache'])
         if self.username:
             command.extend(['--username', self.username])
         if self.password is not None:
-            command.extend(['--password', ('obfuscated', self.password, 'XXXXXX')])
+            command.extend(['--password', self.password])
         if self.depth:
             command.extend(['--depth', self.depth])
         if self.extra_args:
@@ -222,7 +230,8 @@ class SVN(Source):
                                            env=self.env,
                                            logEnviron=self.logEnviron,
                                            timeout=self.timeout,
-                                           collectStdout=collectStdout)
+                                           collectStdout=collectStdout,
+                                           collectStderr=collectStderr)
         cmd.useLog(self.stdio_log, False)
         d = self.runCommand(cmd)
 
@@ -230,8 +239,12 @@ class SVN(Source):
             if cmd.didFail() and abandonOnFailure:
                 log.msg("Source step failed while running command %s" % cmd)
                 raise buildstep.BuildStepFailed()
-            if collectStdout:
+            if collectStdout and collectStderr:
+                return (cmd.stdout, cmd.stderr)
+            elif collectStdout:
                 return cmd.stdout
+            elif collectStderr:
+                return cmd.stderr
             else:
                 return cmd.rc
         d.addCallback(lambda _: evaluateCommand(cmd))
@@ -254,7 +267,12 @@ class SVN(Source):
             return
 
         # then run 'svn info --xml' to check that the URL matches our repourl
-        stdout = yield self._dovccmd(['info', '--xml'], collectStdout=True)
+        stdout, stderr = yield self._dovccmd(['info', '--xml'], collectStdout=True, collectStderr=True, abandonOnFailure=False)
+
+        # svn: E155037: Previous operation has not finished; run 'cleanup' if it was interrupted
+        if 'E155037:' in stderr:
+            defer.returnValue(False)
+            return
 
         try:
             stdout_xml = xml.dom.minidom.parseString(stdout)

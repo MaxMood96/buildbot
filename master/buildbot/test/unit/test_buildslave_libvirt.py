@@ -207,7 +207,7 @@ class TestWorkQueue(unittest.TestCase):
         d.addCallback(shouldnt_get_called)
 
         def errback(f):
-            #log.msg("errback called?")
+            # log.msg("errback called?")
             pass
         d.addErrback(errback)
         return d
