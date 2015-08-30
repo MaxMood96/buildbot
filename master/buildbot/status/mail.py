@@ -36,13 +36,6 @@ try:
 except ImportError:
     ESMTPSenderFactory = None
 
-have_ssl = True
-try:
-    from twisted.internet import ssl
-    from OpenSSL.SSL import SSLv3_METHOD
-except ImportError:
-    have_ssl = False
-
 # this incantation teaches email to output utf-8 using 7- or 8-bit encoding,
 # although it has no effect before python-2.7.
 from email import charset
@@ -288,14 +281,14 @@ class MailNotifier(base.StatusReceiverMultiService, buildset.BuildSetSummaryNoti
     implements(interfaces.IEmailSender)
 
     compare_attrs = ["extraRecipients", "lookup", "fromaddr", "mode",
-                     "categories", "builders", "addLogs", "relayhost",
+                     "tags", "builders", "addLogs", "relayhost",
                      "subject", "sendToInterestedUsers", "customMesg",
                      "messageFormatter", "extraHeaders"]
 
     possible_modes = ("change", "failing", "passing", "problem", "warnings", "exception")
 
     def __init__(self, fromaddr, mode=("failing", "passing", "warnings"),
-                 categories=None, builders=None, addLogs=False,
+                 tags=None, builders=None, addLogs=False,
                  relayhost="localhost", buildSetSummary=False,
                  subject="buildbot %(result)s in %(title)s on %(builder)s",
                  lookup=None, extraRecipients=[],
@@ -303,7 +296,9 @@ class MailNotifier(base.StatusReceiverMultiService, buildset.BuildSetSummaryNoti
                  messageFormatter=defaultMessage, extraHeaders=None,
                  addPatch=True, useTls=False,
                  smtpUser=None, smtpPassword=None, smtpPort=25,
-                 previousBuildGetter=defaultGetPreviousBuild):
+                 previousBuildGetter=defaultGetPreviousBuild,
+                 categories=None  # deprecated, use tags
+                 ):
         """
         @type  fromaddr: string
         @param fromaddr: the email address to be used in the 'From' header.
@@ -345,11 +340,14 @@ class MailNotifier(base.StatusReceiverMultiService, buildset.BuildSetSummaryNoti
                          sent. Defaults to None (send mail for all builds).
                          Use either builders or categories, but not both.
 
-        @type  categories: list of strings
-        @param categories: a list of category names to serve status
+        @type  tags: list of strings
+        @param tags: a list of tag names to serve status
                            information for. Defaults to None (all
-                           categories). Use either builders or categories,
+                           categories). Use either builders or tags,
                            but not both.
+
+        @type  categories: list of strings
+        @param categories: (this attribute is deprecated; use 'tags' instead)
 
         @type  addLogs: boolean
         @param addLogs: if True, include all build logs as attachments to the
@@ -456,7 +454,7 @@ class MailNotifier(base.StatusReceiverMultiService, buildset.BuildSetSummaryNoti
                     config.error(
                         "mode %s is not a valid mode" % (m,))
         self.mode = mode
-        self.categories = categories
+        self.tags = tags or categories
         self.builders = builders
         self.addLogs = addLogs
         self.relayhost = relayhost
@@ -486,10 +484,10 @@ class MailNotifier(base.StatusReceiverMultiService, buildset.BuildSetSummaryNoti
         self.watched = []
         self.master_status = None
 
-        # you should either limit on builders or categories, not both
-        if self.builders is not None and self.categories is not None:
+        # you should either limit on builders or tags, not both
+        if self.builders is not None and self.tags is not None:
             config.error(
-                "Please specify only builders or categories to include - " +
+                "Please specify only builders or tags to include - " +
                 "not both.")
 
         if customMesg:
@@ -525,7 +523,7 @@ class MailNotifier(base.StatusReceiverMultiService, buildset.BuildSetSummaryNoti
 
     def builderAdded(self, name, builder):
         # only subscribe to builders we are interested in
-        if self.categories is not None and builder.category not in self.categories:
+        if self.tags is not None and not builder.matchesAnyTag(self.tags):
             return None
 
         self.watched.append(builder)
@@ -545,8 +543,8 @@ class MailNotifier(base.StatusReceiverMultiService, buildset.BuildSetSummaryNoti
         builder = build.getBuilder()
         if self.builders is not None and builder.name not in self.builders:
             return False  # ignore this build
-        if self.categories is not None and \
-                builder.category not in self.categories:
+        if self.tags is not None and \
+                not builder.matchesAnyTag(self.tags):
             return False  # ignore this build
 
         prev = self.getPreviousBuild(build)
@@ -867,12 +865,6 @@ class MailNotifier(base.StatusReceiverMultiService, buildset.BuildSetSummaryNoti
     def sendmail(self, s, recipients):
         result = defer.Deferred()
 
-        if have_ssl and self.useTls:
-            client_factory = ssl.ClientContextFactory()
-            client_factory.method = SSLv3_METHOD
-        else:
-            client_factory = None
-
         if self.smtpUser and self.smtpPassword:
             useAuth = True
         else:
@@ -884,8 +876,7 @@ class MailNotifier(base.StatusReceiverMultiService, buildset.BuildSetSummaryNoti
         sender_factory = ESMTPSenderFactory(
             self.smtpUser, self.smtpPassword,
             self.fromaddr, recipients, StringIO(s),
-            result, contextFactory=client_factory,
-            requireTransportSecurity=self.useTls,
+            result, requireTransportSecurity=self.useTls,
             requireAuthentication=useAuth)
 
         reactor.connectTCP(self.relayhost, self.smtpPort, sender_factory)

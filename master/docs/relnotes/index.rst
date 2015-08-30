@@ -1,50 +1,122 @@
-Release Notes for Buildbot |version|
-====================================
+Release Notes for Buildbot 0.8.11
+=================================
 
 ..
     Any change that adds a feature or fixes a bug should have an entry here.
     Most simply need an additional bulleted list item, but more significant
     changes can be given a subsection of their own.
 
-The following are the release notes for Buildbot |version|.
-This version was released on the 2nd of December, 2014.
+The following are the release notes for Buildbot 0.8.11.
+This version was released on the 20th of April, 2015.
 
 Master
 ------
 
+Requirements:
+
+* Buildbot works python-dateutil >= 1.5
+
 Features
 ~~~~~~~~
 
-* Both the P4 source step and P4 change source support ticket-based authentication.
+* GitHub change hook now supports application/json format.
 
-* Clickable 'categories' links added in 'Waterfall' page (web UI).
+* Buildbot is now compatible with Gerrit v2.6 and higher.
+
+  To make this happen, the return result of ``reviewCB`` and ``summaryCB`` callback has changed from
+
+  .. code-block:: python
+
+     (message, verified, review)
+
+  to
+
+  .. code-block:: python
+
+     {'message': message,
+      'labels': {'label-name': value,
+                ...
+                }
+     }
+
+  The implications are:
+
+  * there are some differences in behaviour: only those labels that were provided will be updated
+  * Gerrit server must be able to provide a version, if it can't the :bb:status:`GerritStatusPush` will not work
+
+  .. note::
+
+     If you have an old style ``reviewCB`` and/or ``summaryCB`` implemented, these will still work, however there could be more labels updated than anticipated.
+
+  More detailed information is available in :bb:status:`GerritStatusPush` section.
+
+* Buildbot now supports plugins.
+  They allow Buildbot to be extended by using components distributed independently from the main code.
+  They also provide for a unified way to access all components.
+  When previously the following construction was used::
+
+      from buildbot.kind.other.bits import ComponentClass
+
+      ... ComponentClass ...
+
+  the following construction achieves the same result::
+
+      from buildbot.plugins import kind
+
+      ... kind.ComponentClass ...
+
+  Kinds of components that are available this way are described in :doc:`../manual/plugins`.
+
+  .. note::
+
+     While the components can be still directly imported as ``buildbot.kind.other.bits``, this might not be the case after Buildbot v1.0 is released.
+
+* :bb:chsrc:`GitPoller` now supports detecting new branches
+
+* :bb:step:`MasterShellCommand` now renders the ``path`` argument.
+
+* :class:`~buildbot.process.buildstep.ShellMixin`: the ``workdir`` can now be overridden in the call to ``makeRemoteShellCommand``.
+
+* GitHub status target now allows to specify a different base URL for the API (usefule for GitHub enterprise installations).
+  This feature requires `txgithub` of version 0.2.0 or better.
+
+* GitHub change hook now supports payload validation using shared secret, see :ref:`GitHub-hook` for details.
+
+* Added StashStatusPush status hook for Atlassian Stash
+
+* Builders can now have multiple "tags" associated with them. Tags can be used in various status classes as filters (eg, on the waterfall page).
+
+* :bb:status:`MailNotifier` no longer forces SSL 3.0 when ``useTls`` is true.
+
+* GitHub change hook now supports function as codebase argument.
+
+* GitHub change hook now supports pull_request events.
+
+* :class:`~buildbot.process.buildstep.Trigger`: the ``getSchedulersAndProperties`` customization method has been backported from Nine.
+  This provides a way to dynamically specify which schedulers (and the properties for that scheduler) to trigger at runtime.
 
 Fixes
 ~~~~~
 
-* Buildbot is now compatible with SQLAlchemy 0.8 and higher, using the newly-released SQLAlchemy-Migrate.
-
-* The :bb:step:`HTTPStep` step's request parameters are now renderable.
-
-* Fixed content spoofing vulnerabilities (:bb:bug:`2589`).
-
-* Fixed cross-site scripting in status_json (:bb:bug:`2943`).
-
-* :class:`~buildbot.status.status_gerrit.GerritStatusPush` supports specifying an SSH identity file explicitly.
-
-* Fixed bug which made it impossible to specify the project when using the BitBucket dialect.
-
-* Fixed SVN master-side source step: if a SVN operation fails, the repository end up in a situation when a manual intervention is required.
-  Now if SVN reports such a situation during initial check, the checkout will be clobbered.
-
-* Fixed master-side source steps to respect the specified timeout when removing files.
+* GitHub change hook now correctly responds to ping events.
+* ``buildbot.steps.http`` steps now correctly have ``url`` parameter renderable
+* :bb:step:`MasterShellCommand` now correctly logs the working directory where it was run.
+* With Git(), force the updating submodules to ensure local changes by the build are overwitten.
+  This both ensures more consistent builds and avoids errors when updating submodules.
+* With Git(), make sure 'git submodule sync' is called before 'git submodule update' to update
+  stale remote urls (:bb:bug:`2155`).
 
 Deprecations, Removals, and Non-Compatible Changes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+* The builder parameter "category" is deprecated and is replaced by a parameter called "tags".
+
 Changes for Developers
 ~~~~~~~~~~~~~~~~~~~~~~
 
+* :class:`~buildbot.process.buildstep.Trigger`: ``createTriggerProperties`` now takes one argument (the properties to generate).
+
+* :class:`~buildbot.process.buildstep.Trigger`: ``getSchedulers`` method is no longer used and was removed.
 
 Slave
 -----
@@ -65,7 +137,7 @@ For a more detailed description of the changes made in this version, see the git
 
 .. code-block:: bash
 
-   git log v0.8.9..eight
+   git log v0.8.10..532cf49
 
 Older Versions
 --------------
@@ -76,6 +148,7 @@ Newer versions are also available here:
 .. toctree::
     :maxdepth: 1
 
+    0.8.10
     0.8.9
     0.8.8
     0.8.7

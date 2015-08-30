@@ -228,12 +228,14 @@ class Git(Source):
         else:
             yield self._fetchOrFallback()
 
+        yield self._syncSubmodule(None)
         yield self._updateSubmodule(None)
 
     def clean(self):
         command = ['clean', '-f', '-f', '-d']
         d = self._dovccmd(command)
         d.addCallback(self._fetchOrFallback)
+        d.addCallback(self._syncSubmodule)
         d.addCallback(self._updateSubmodule)
         d.addCallback(self._cleanSubmodule)
         return d
@@ -254,6 +256,7 @@ class Git(Source):
         else:
             yield self._doClobber()
             yield self._fullCloneOrFallback()
+        yield self._syncSubmodule()
         yield self._updateSubmodule()
         yield self._cleanSubmodule()
 
@@ -511,10 +514,16 @@ class Git(Source):
             return None
         return changes[-1].revision
 
+    def _syncSubmodule(self, _=None):
+        if self.submodules:
+            return self._dovccmd(['submodule', 'sync'])
+        else:
+            return defer.succeed(0)
+
     def _updateSubmodule(self, _=None):
         if self.submodules:
             return self._dovccmd(['submodule', 'update',
-                                  '--init', '--recursive'])
+                                  '--init', '--recursive', '--force'])
         else:
             return defer.succeed(0)
 
@@ -577,6 +586,9 @@ class Git(Source):
             d = self.runCommand(cmd)
 
             def checkWithListdir(_):
+                if 'files' not in cmd.updates:
+                    # no files - directory doesn't exist
+                    return "clone"
                 files = cmd.updates['files'][0]
                 if '.git' in files:
                     return "update"

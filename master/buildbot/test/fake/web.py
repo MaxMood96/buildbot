@@ -36,8 +36,11 @@ class FakeRequest(Mock):
     redirected_to = None
     failure = None
 
-    def __init__(self, args={}, content=''):
+    def __init__(self, args=None, content=''):
         Mock.__init__(self, spec=server.Request)
+
+        if args is None:
+            args = {}
 
         self.args = args
         self.content = StringIO(content)
@@ -47,6 +50,7 @@ class FakeRequest(Mock):
         self.uri = '/'
         self.prepath = []
         self.method = 'GET'
+        self.received_headers = {}
         master = webstatus.master = fakemaster.make_master()
 
         webstatus.setUpJinja2()
@@ -59,6 +63,9 @@ class FakeRequest(Mock):
         master.addChange = addChange
 
         self.deferred = defer.Deferred()
+
+    def getHeader(self, key):
+        return self.received_headers.get(key)
 
     def write(self, data):
         self.written = self.written + data
