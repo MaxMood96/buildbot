@@ -269,9 +269,9 @@ be used to access them.
 
     The console view is still in development. At this moment by
     default the view sorts revisions lexically, which can lead to odd
-    behavior with non-integer revisions (e.g., git), or with integer
+    behavior with non-integer revisions (e.g., Git), or with integer
     revisions of different length (e.g., 999 and 1000). It also has
-    some issues with displaying multiple braches at the same time. If
+    some issues with displaying multiple branches at the same time. If
     you do have multiple branches, you should use the ``branch=``
     query argument.  The ``order_console_by_time`` option may help
     sorting revisions, although it depends on the date being set
@@ -291,7 +291,7 @@ be used to access them.
 
 ``/json``
     This view provides quick access to Buildbot status information in a form that
-    is easiliy digested from other programs, including JavaScript.  See
+    is easily digested from other programs, including JavaScript.  See
     ``/json/help`` for detailed interactive documentation of the output formats
     for this view.
 
@@ -443,6 +443,9 @@ authentication.  The actions are:
 ``gracefulShutdown``
     gracefully shut down a slave when it is finished with its current build
 
+``pauseSlave``
+    temporarily stop running new builds on a slave
+
 ``stopBuild``
     stop a running build
 
@@ -480,7 +483,7 @@ specify ``False`` (the default) to prohibit that action or ``True`` to enable
 it.  Or you can specify a callable.  Each such callable will take a username as
 its first argument.  The remaining arguments vary depending on the type of
 authorization request.  For ``forceBuild``, the second argument is the builder
-stsatus.
+status.
 
 Authentication
 ##############
@@ -509,7 +512,7 @@ keyword argument to :class:`Authz`, and specify the action as ``"auth"``. ::
 The class :class:`BasicAuth` implements a basic authentication mechanism using a
 list of user/password tuples provided from the configuration file.  The class
 `HTPasswdAuth` implements an authentication against an :file:`.htpasswd`
-file. The `HTPasswdAprAuth` a subcalss of `HTPasswdAuth` use libaprutil for
+file. The `HTPasswdAprAuth` a subclass of `HTPasswdAuth` use libaprutil for
 authenticating. This adds support for apr1/md5 and sha1 password hashes but
 requires libaprutil at runtime. The :class:`UsersAuth` works with
 :ref:`User-Objects` to check for valid user credentials.
@@ -702,7 +705,7 @@ submission of an arbitrary change request. Run :command:`post_build_request.py
 --help` for more information.  The ``base`` dialect must be enabled for this to
 work.
 
-github hook
+GitHub hook
 ###########
 
 The GitHub hook is simple and takes no options. ::
@@ -723,10 +726,24 @@ useful in cases where you cannot expose the WebStatus for public consumption.
 
 .. warning::
 
-    The incoming HTTP requests for this hook are not authenticated in
-    any way.  Anyone who can access the web status can "fake" a request from
-    GitHub, potentially causing the buildmaster to run arbitrary code.  See
-    :bb:bug:`2186` for work to fix this problem.
+    The incoming HTTP requests for this hook are not authenticated by default.
+    Anyone who can access the web status can "fake" a request from
+    GitHub, potentially causing the buildmaster to run arbitrary code.
+
+To protect URL against unauthorized access you should use ``change_hook_auth`` option ::
+
+    c['status'].append(html.WebStatus(..
+                                      change_hook_auth=["file:changehook.passwd"]))
+
+And create a file ``changehook.passwd`` ::
+
+    user:password
+
+Then, create a GitHub service hook (see https://help.github.com/articles/post-receive-hooks) with a WebHook URL like ``http://user:password@builds.mycompany.com/bbot/change_hook/github``.
+
+See the `documentation <https://twistedmatrix.com/documents/current/core/howto/cred.html>`_ for twisted cred for more option to pass to ``change_hook_auth``.
+
+Note that not using ``change_hook_auth`` can expose you to security risks.
 
 Google Code hook
 ################
@@ -925,17 +942,19 @@ given below::
                         )
             text.append(u'<tr><td>Build Reason:</td><td>%s</td></tr>' % build.getReason())
             source = u""
-            ss = build.getSourceStamp()
-            if ss.branch:
-                source += u"[branch %s] " % ss.branch
-            if ss.revision:
-                source +=  ss.revision
-            else:
-                source += u"HEAD"
-            if ss.patch:
-                source += u" (plus patch)"
-            if ss.patch_info: # add patch comment
-                source += u" (%s)" % ss.patch_info[1]
+            for ss in build.getSourceStamps():
+                if ss.codebase:
+                    source += u'%s: ' % ss.codebase
+                if ss.branch:
+                    source += u"[branch %s] " % ss.branch
+                if ss.revision:
+                    source +=  ss.revision
+                else:
+                    source += u"HEAD"
+                if ss.patch:
+                    source += u" (plus patch)"
+                if ss.patch_info: # add patch comment
+                    source += u" (%s)" % ss.patch_info[1]
             text.append(u"<tr><td>Build Source Stamp:</td><td><b>%s</b></td></tr>" % source)
             text.append(u"<tr><td>Blamelist:</td><td>%s</td></tr>" % ",".join(build.getResponsibleUsers()))
             text.append(u'</table>')
@@ -1127,6 +1146,20 @@ MailNotifier arguments
     (dictionary) A dictionary containing key/value pairs of extra headers to add
     to sent e-mails. Both the keys and the values may be a `Interpolate` instance.
 
+``previousBuildGetter``
+    An optional function to calculate the previous build to the one at hand. A
+    :func:`previousBuildGetter` takes a :class:`BuildStatus` and returns a
+    :class:`BuildStatus`. This function is useful when builders don't process
+    their requests in order of arrival (chronologically) and therefore the order
+    of completion of builds does not reflect the order in which changes (and
+    their respective requests) arrived into the system. In such scenarios,
+    status transitions in the chronological sequence of builds within a builder
+    might not reflect the actual status transition in the topological sequence
+    of changes in the tree. What's more, the latest build (the build at hand)
+    might not always be for the most recent request so it might not make sense
+    to send a "change" or "problem" email about it. Returning None from this
+    function will prevent such emails from going out.
+
 As a help to those writing :func:`messageFormatter` functions, the following
 table describes how to get some useful pieces of information from the various
 status objects:
@@ -1134,8 +1167,8 @@ status objects:
 Name of the builder that generated this event
     ``name``
 
-Name of the project
-    :meth:`master_status.getProjectName()`
+Title of the buildmaster
+    :meth:`master_status.getTitle()`
 
 MailNotifier mode
     ``mode`` (a combination of ``change``, ``failing``, ``passing``, ``problem``, ``warnings``,
@@ -1170,10 +1203,9 @@ List of responsible users
 
 Source information (only valid if ss is not ``None``)
 
-    ::
+    A build has a set of sourcestamps::
         
-        ss = build.getSourceStamp()
-        if ss:
+        for ss in build.getSourceStamp():
             branch = ss.branch
             revision = ss.revision
             patch = ss.patch
@@ -1201,7 +1233,7 @@ Source information (only valid if ss is not ``None``)
 
     The ``Change`` methods :meth:`asText` and :meth:`asDict` can be used to format the
     information above.  :meth:`asText` returns a list of strings and :meth:`asDict` returns
-    a dictonary suitable for html/mail rendering.
+    a dictionary suitable for html/mail rendering.
     
 Log information ::
     
@@ -1317,6 +1349,22 @@ Some of the commands currently available:
 :samp:`help {COMMAND}`
     Describe a command. Use :command:`help commands` to get a list of known
     commands.
+
+:samp:`shutdown {ARG}`
+    Control the shutdown process of the buildbot master.
+    Available arguments are:
+
+    ``check``
+        Check if the buildbot master is running or shutting down
+
+    ``start``
+        Start clean shutdown
+
+    ``stop``
+        Stop clean shutdown
+
+    ``now``
+        Shutdown immediately without waiting for the builders to finish
     
 ``source``
     Announce the URL of the Buildbot's home page.
@@ -1327,7 +1375,7 @@ Some of the commands currently available:
 Additionally, the config file may specify default notification options
 as shown in the example earlier.
 
-If the ``allowForce=True`` option was used, some addtional commands
+If the ``allowForce=True`` option was used, some additional commands
 will be available:
 
 .. index:: Properties; from forced build
@@ -1412,7 +1460,7 @@ StatusPush
 :class:`StatusPush` batches events normally processed and sends it to the
 :func:`serverPushCb` callback every ``bufferDelay`` seconds. The callback
 should pop items from the queue and then queue the next callback.
-If no items were poped from ``self.queue``, ``retryDelay`` seconds will be
+If no items were popped from ``self.queue``, ``retryDelay`` seconds will be
 waited instead.
 
 .. bb:status:: HttpStatusPush
@@ -1461,14 +1509,28 @@ GerritStatusPush
         # message, verified, reviewed
         return message, (result == SUCCESS or -1), 0
 
+    def gerritStartCB(builderName, build, arg):
+        message = "Buildbot started compiling your patchset\n"
+        message += "on configuration: %s\n" % builderName
+
+        if arg:
+            message += "\nFor more details visit:\n"
+            message += status.getURLForThing(build) + "\n"
+
+        return message
+
     c['buildbotURL'] = 'http://buildbot.example.com/'
     c['status'].append(GerritStatusPush('127.0.0.1', 'buildbot',
                                         reviewCB=gerritReviewCB,
-                                        reviewArg=c['buildbotURL']))
+                                        reviewArg=c['buildbotURL'],
+                                        startCB=gerritStartCB,
+                                        startArg=c['buildbotURL']))
 
-GerritStatusPush sends review of the :class:`Change` back to the Gerrit server.
+GerritStatusPush sends review of the :class:`Change` back to the Gerrit server,
+optionally also sending a message when a build is started.
 ``reviewCB`` should return a tuple of message, verified, reviewed. If message
 is ``None``, no review will be sent.
+``startCB`` should return a message.
 
 .. [#] Apparently this is the same way http://buildd.debian.org displays build status
 

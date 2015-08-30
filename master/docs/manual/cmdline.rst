@@ -114,6 +114,7 @@ stop
     buildbot stop {BASEDIR}
 
 This terminates the daemon (either buildmaster or buildslave) running in the given directory.
+The :option:`--clean` option shuts down the buildmaster cleanly.
 
 .. bb:cmdline:: sighup
 
@@ -337,7 +338,7 @@ for each tree you use, so it may be more convenient to use the
 ``try_topfile`` approach instead.
 
 Other VC systems which work on full projects instead of individual
-directories (darcs, mercurial, git, monotone) do not require
+directories (Darcs, Mercurial, Git, Monotone) do not require
 :command:`try` to know the top directory, so the :option:`--try-topfile`
 and :option:`--try-topdir` arguments will be ignored.
 
@@ -401,9 +402,9 @@ Mercurial
 
 Perforce
     :command:`try` does a ``p4 changes -m1 ...`` to determine the latest
-    changelist and implicitly assumes that the local tree is synched to this
+    changelist and implicitly assumes that the local tree is synced to this
     revision. This is followed by a ``p4 diff -du`` to obtain the patch.
-    A p4 patch differs sligtly from a normal diff. It contains full depot
+    A p4 patch differs slightly from a normal diff. It contains full depot
     paths and must be converted to paths relative to the branch top. To convert
     the following restriction is imposed. The p4base (see :bb:chsrc:`P4Source`)
     is assumed to be ``//depot``
@@ -468,6 +469,18 @@ wait until your changes have either been proven good or bad before
 exiting. Unless you use the :option:`--quiet` option (or
 ``try_quiet=True``), it will emit a progress message every 60
 seconds until the builds have completed.
+
+Sending properties
+##################
+
+You can set properties to send with your change using either the
+:option:`--property=key=value` option, which sets a single property,
+or the :option:`--properties=key1=value1,key2=value2...` option,
+which sets multiple comma-separated properties.
+Either of these can be sepcified multiple times.
+Note that the :option:`--properties` option uses commas to split on
+properties, so if your property value itself contains a comma,
+you'll need to use the :option:`--property` option to set it.
 
 .. _try--diff:
 
@@ -792,7 +805,7 @@ command will look for a special directory named :file:`.buildbot`,
 starting from the current directory (where the command was run) and
 crawling upwards, eventually looking in the user's home directory. It
 will look for a file named :file:`options` in this directory, and will
-evaluate it as a python script, looking for certain names to be set.
+evaluate it as a Python script, looking for certain names to be set.
 You can just put simple ``name = 'value'`` pairs in this file to
 set the options.
 
@@ -853,7 +866,7 @@ the command-line option name.
     system being used.
 
 ``try_branch``
-    Equivlanent to :option:`--branch`, this indicates that the current tree is on a
+    Equivalent to :option:`--branch`, this indicates that the current tree is on a
     non-trunk branch.
 
 ``try_topdir``

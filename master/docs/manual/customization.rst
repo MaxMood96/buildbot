@@ -11,7 +11,7 @@ This chapter describes some of the more common idioms in advanced Buildbot
 configurations.
 
 At the moment, this chapter is an unordered set of suggestions; if you'd like
-to clean it up, fork the project on github and get started!
+to clean it up, fork the project on GitHub and get started!
 
 Programmatic Configuration Generation
 -------------------------------------
@@ -50,7 +50,7 @@ true if the requests can be merged, and False otherwise. For example::
 
     def mergeRequests(builder, req1, req2):
         "any requests with the same branch can be merged"
-        return req1.branch == req2.branch
+        return req1.source.branch == req2.source.branch
     c['mergeRequests'] = mergeRequests
 
 In many cases, the details of the :class:`SourceStamp`\s and :class:`BuildRequest`\s are important.
@@ -275,7 +275,7 @@ there are a number of related sub-projects that all get released in a group.
 
 For example, `Divmod.org <http://Divmod.org>`_ hosts a project named `Nevow` as
 well as one named `Quotient`. In a checked-out Nevow tree there is a directory
-named `formless` that contains a python source file named :file:`webform.py`.
+named `formless` that contains a Python source file named :file:`webform.py`.
 This repository is accessible via webdav (and thus uses an `http:` scheme)
 through the divmod.org hostname. There are many branches in this repository,
 and they use a ``({BRANCHNAME})/({PROJECT})`` naming policy.
@@ -343,7 +343,7 @@ The following definition for :meth:`my_file_splitter` will do the job::
         projectname = pieces.pop(0)
         if projectname != 'Nevow':
             return None # wrong project
-        return dict(branc=branch, path='/'.join(pieces))
+        return dict(branch=branch, path='/'.join(pieces))
 
 If you later decide you want to get changes for Quotient as well you could
 replace the last 3 lines with simply::
@@ -356,7 +356,7 @@ replace the last 3 lines with simply::
 Writing Change Sources
 ----------------------
 
-For some version-control systems, making Bulidbot aware of new changes can be a
+For some version-control systems, making Buildbot aware of new changes can be a
 challenge.  If the pre-supplied classes in :ref:`Change-Sources` are not
 sufficient, then you will need to write your own.
 
@@ -475,12 +475,12 @@ with the :class:`SourceStamp` for the build, and should return the appropriate
 workdir.  Note that the value must be returned immediately - Deferreds are not
 supported.
 
-This can be useful, for exmaple, in scenarios with multiple repositories
+This can be useful, for example, in scenarios with multiple repositories
 submitting changes to BuildBot. In this case you likely will want to have a
 dedicated workdir per repository, since otherwise a sourcing step with mode =
 "update" will fail as a workdir with a working copy of repository A can't be
 "updated" for changes from a repository B. Here is an example how you can
-achive workdir-per-repo::
+achieve workdir-per-repo::
 
         def workdir(source_stamp):
             return hashlib.md5 (source_stamp.repository).hexdigest()[:8]
@@ -536,7 +536,7 @@ Consider the use of a :class:`BuildStep` in :file:`master.cfg`::
 
 This creates a single instance of class ``MyStep``.
 However, Buildbot needs a new object each time the step is executed.
-An instance of :class:`~buildbot.process.buildstep.BuildStep` rembers how it was constructed, and can create copies of itself.
+An instance of :class:`~buildbot.process.buildstep.BuildStep` remembers how it was constructed, and can create copies of itself.
 When writing a new step class, then, keep in mind are that you cannot do anything "interesting" in the constructor -- limit yourself to checking and storing arguments.
 
 It is customary to call the parent class's constructor with all otherwise-unspecified keyword arguments.
@@ -632,7 +632,7 @@ stripped completely. This latter option makes it easy to save the
 results to a file and run :command:`grep` or whatever against the
 output.
 
-Each :class:`BuildStep` contains a mapping (implemented in a python dictionary)
+Each :class:`BuildStep` contains a mapping (implemented in a Python dictionary)
 from :class:`LogFile` name to the actual :class:`LogFile` objects. Status plugins can
 get a list of LogFiles to display, for example, a list of HREF links
 that, when clicked, provide the full contents of the :class:`LogFile`.
@@ -833,7 +833,7 @@ arbitrary object. For example::
 
 Remember that properties set in a step may not be available until the next step
 begins.  In particular, any :class:`Property` or :class:`Interpolate`
-instances for the current step are interpoloated before the ``start`` method
+instances for the current step are interpolated before the ``start`` method
 begins.
 
 .. index:: links, BuildStep URLs, addURL
@@ -971,8 +971,8 @@ clause like::
     f.addStep(SVN(svnurl="stuff"))
     f.addStep(Framboozle())
 
-Remember that :file:`master.cfg` is secretly just a python program with one
-job: populating the :file:`BuildmasterConfig` dictionary. And python programs
+Remember that :file:`master.cfg` is secretly just a Python program with one
+job: populating the :file:`BuildmasterConfig` dictionary. And Python programs
 are allowed to define as many classes as they like. So you can define
 classes and use them in the same file, just as long as the class is
 defined before some other code tries to use it.
@@ -1019,10 +1019,10 @@ or::
     f.addStep(SVN(svnurl="stuff"))
     f.addStep(framboozle.Framboozle())
 
-(check out the python docs for details about how "import" and "from A
+(check out the Python docs for details about how "import" and "from A
 import B" work).
 
-What we've done here is to tell python that every time it handles an
+What we've done here is to tell Python that every time it handles an
 "import" statement for some named module, it should look in our
 :file:`~/lib/python/` for that module before it looks anywhere else. After our
 directories, it will try in a bunch of standard directories too
@@ -1039,9 +1039,9 @@ to start your buildmaster in a slightly weird way, or you have to
 modify your environment to set the :envvar:`PYTHONPATH` variable.
 
 
-Option 3: Install this code into a standard python library directory
+Option 3: Install this code into a standard Python library directory
 
-Find out what your python's standard include path is by asking it:
+Find out what your Python's standard include path is by asking it:
 
 .. code-block:: none
 

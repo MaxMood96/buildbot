@@ -16,7 +16,7 @@ include docs/manual/_images/*.txt
 include docs/manual/_images/*.ai
 include docs/manual/_images/icon.blend
 include docs/manual/_images/Makefile
-include docs/bbdocs/*
+include docs/bbdocs/*.py
 include docs/developer/*
 include docs/relnotes/*
 
@@ -30,6 +30,5 @@ include buildbot/buildbot.png
 include buildbot/db/migrate/README buildbot/db/migrate/migrate.cfg
 
 include contrib/* contrib/windows/* contrib/os-x/* contrib/css/* contrib/libvirt/*
-include contrib/blockertest/*
 include contrib/trac/* contrib/trac/bbwatcher/* contrib/trac/bbwatcher/templates/*
 include contrib/init-scripts/*

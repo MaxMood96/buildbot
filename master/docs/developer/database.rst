@@ -6,7 +6,7 @@ Database
 As of version 0.8.0, Buildbot has used a database as part of its storage
 backend.  This section describes the database connector classes, which allow
 other parts of Buildbot to access the database.  It also describes how to
-modify the database schema and the connector classes themsleves.
+modify the database schema and the connector classes themselves.
 
 .. note::
 
@@ -97,7 +97,7 @@ buildrequests
         returns ``None`` if there is no such buildrequest.  Note that build
         requests are not cached, as the values in the database are not fixed.
 
-    .. py:method:: getBuildRequests(buildername=None, complete=None, claimed=None, bsid=None)
+    .. py:method:: getBuildRequests(buildername=None, complete=None, claimed=None, bsid=None, branch=None, repository=None))
 
         :param buildername: limit results to buildrequests for this builder
         :type buildername: string
@@ -106,6 +106,8 @@ buildrequests
             completion.
         :param claimed: see below
         :param bsid: see below
+        :param repository: the repository associated with the sourcestamps originating the requests
+        :param branch: the branch associated with the sourcestamps originating the requests
         :returns: list of brdicts, via Deferred
 
         Get a list of build requests matching the given characteristics.
@@ -162,7 +164,7 @@ buildrequests
         :raises: :py:exc:`AlreadyClaimedError`
 
         Re-claim the given build requests, updating the timestamp, but checking
-        that the requsts are owned by this master.  The resulting deferred will
+        that the requests are owned by this master.  The resulting deferred will
         fire normally on success, or fail with :py:exc:`AlreadyClaimedError` if
         *any* of the build requests are already claimed by another master
         instance, or don't exist.  In this case, none of the reclaims will take
@@ -356,6 +358,23 @@ buildsets
         :returns: list of bsdicts, via Deferred
 
         Get a list of bsdicts matching the given criteria.
+
+    .. py:method:: getRecentBuildsets(count, branch=None, repository=None,
+                           complete=None):
+
+        :param count: maximum number of buildsets to retrieve.
+        :type branch: integer
+        :param branch: optional branch name. If specified, only buildsets
+            affecting such branch will be returned.
+        :type branch: string
+        :param repository: optional repository name. If specified, only
+            buildsets affecting such repository will be returned.
+        :type repository: string
+        :param complete: if true, return only complete buildsets; if false,
+            return only incomplete buildsets; if ``None`` or omitted, return all
+            buildsets
+        :type complete: Boolean
+        :returns: list of bsdicts, via Deferred
 
     .. py:method:: getBuildsetProperties(buildsetid)
 
@@ -561,8 +580,8 @@ sourcestamps
 .. py:class:: SourceStampsConnectorComponent
 
     This class manages source stamps, as stored in the database. Source stamps
-    are linked to changes. Source stamps with the same sourcestampsetid belong 
-    to the same sourcestampset. Buildsets link to one or more source stamps via 
+    are linked to changes. Source stamps with the same sourcestampsetid belong
+    to the same sourcestampset. Buildsets link to one or more source stamps via
     a sourcestampset id.
 
     An instance of this class is available at ``master.db.sourcestamps``.
@@ -592,7 +611,7 @@ sourcestamps
 
     .. py:method:: addSourceStamp(branch, revision, repository, project, patch_body=None, patch_level=0, patch_author="", patch_comment="", patch_subdir=None, changeids=[])
 
-        :param branch: 
+        :param branch:
         :type branch: unicode string
         :param revision:
         :type revision: unicode string
@@ -629,15 +648,15 @@ sourcestamps
         such source stamp exists.
 
     .. py:method:: getSourceStamps(sourcestampsetid)
-    
+
         :param sourcestampsetid: identification of the set, all returned sourcestamps belong to this set
         :type sourcestampsetid: integer
         :returns: sslist of ssdict
-        
+
         Get a set of sourcestamps identified by a set id. The set is returned as
-        a sslist that contains one or more sourcestamps (represented as ssdicts). 
+        a sslist that contains one or more sourcestamps (represented as ssdicts).
         The list is empty if the set does not exist or no sourcestamps belong to the set.
-    
+
 sourcestampset
 ~~~~~~~~~~~~~~
 
@@ -649,19 +668,19 @@ sourcestampset
 
     This class is responsible for adding new sourcestampsets to the database.
     Build sets link to sourcestamp sets, via their (set) id's.
-    
+
     An instance of this class is available at ``master.db.sourcestampsets``.
-    
+
     Sourcestamp sets are identified by a sourcestampsetid.
 
     .. py:method:: addSourceStampSet()
-    
+
         :returns: new sourcestampsetid as integer, via Deferred
-        
+
         Add a new (empty) sourcestampset to the database. The unique identification
         of the set is returned as integer. The new id can be used to add
         new sourcestamps to the database and as reference in a buildset.
-    
+
 state
 ~~~~~
 
@@ -967,7 +986,7 @@ Database Schema
 .. py:module:: buildbot.db.model
 
 Database connector methods access the database through SQLAlchemy, which
-requires access to Python objects represenging the database tables.  That is
+requires access to Python objects representing the database tables.  That is
 handled through the model.
 
 .. py:class:: Model
@@ -1057,7 +1076,7 @@ Tests
 It goes without saying that any new connector methods must be fully tested!
 
 You will also want to add an in-memory implementation of the methods to the
-fake classes in ``master/budilbot/test/fake/fakedb.py``.  Non-DB Buildbot code
+fake classes in ``master/buildbot/test/fake/fakedb.py``.  Non-DB Buildbot code
 is tested using these fake implementations in order to isolate that code from
 the database code.
 
@@ -1082,7 +1101,7 @@ be complex and require caution so as not to lose information.
 
 Create a new script in :bb:src:`master/buildbot/db/migrate/versions`, following
 the numbering scheme already present.  The script should have an ``update``
-method, which takes an engine as a parameter, and ugprades the database, both
+method, which takes an engine as a parameter, and upgrades the database, both
 changing the schema and performing any required data migrations.  The engine
 passed to this parameter is "enhanced" by SQLAlchemy-Migrate, with methods to
 handle adding, altering, and dropping columns.  See the SQLAlchemy-Migrate
@@ -1172,5 +1191,5 @@ query specifying id's that are IN a subquery will not work.  The workaround is
 to run the subquery directly, and then execute a DELETE query for each returned
 id.
 
-If this weakness has a significant peformance impact, it would be acceptable to
+If this weakness has a significant performance impact, it would be acceptable to
 conditionalize use of the subquery on the database dialect.
