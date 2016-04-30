@@ -1,122 +1,38 @@
-Release Notes for Buildbot 0.8.12
-=================================
+Release Notes for Buildbot |version|
+====================================
 
 ..
     Any change that adds a feature or fixes a bug should have an entry here.
     Most simply need an additional bulleted list item, but more significant
     changes can be given a subsection of their own.
 
-The following are the release notes for Buildbot 0.8.12.
-This version was released on the 20th of April, 2015.
+The following are the release notes for Buildbot |version|.
 
 Master
 ------
 
-Requirements:
-
-* Buildbot works python-dateutil >= 1.5
-
 Features
 ~~~~~~~~
 
-* GitHub change hook now supports application/json format.
+* :bb:step:`Git` supports an "origin" option to give a name to the remote repo.
 
-* Buildbot is now compatible with Gerrit v2.6 and higher.
+* two new general steps are added to handle related builds -- :bb:step:`CancelRelatedBuilds` and :bb:step:`StopRelatedBuilds` -- as well as Gerrit specific ones -- :bb:step:`CancelGerritRelatedBuilds` and :bb:step:`StopGerritRelatedBuilds`.
+  More information in :ref:`the manual <handle-related-builds>`.
 
-  To make this happen, the return result of ``reviewCB`` and ``summaryCB`` callback has changed from
+* :class:`~buildbot.status.github.GitHubStatus` now accepts a ``context`` parameter to be passed to the GitHub Status API.
 
-  .. code-block:: python
-
-     (message, verified, review)
-
-  to
-
-  .. code-block:: python
-
-     {'message': message,
-      'labels': {'label-name': value,
-                ...
-                }
-     }
-
-  The implications are:
-
-  * there are some differences in behaviour: only those labels that were provided will be updated
-  * Gerrit server must be able to provide a version, if it can't the :bb:status:`GerritStatusPush` will not work
-
-  .. note::
-
-     If you have an old style ``reviewCB`` and/or ``summaryCB`` implemented, these will still work, however there could be more labels updated than anticipated.
-
-  More detailed information is available in :bb:status:`GerritStatusPush` section.
-
-* Buildbot now supports plugins.
-  They allow Buildbot to be extended by using components distributed independently from the main code.
-  They also provide for a unified way to access all components.
-  When previously the following construction was used::
-
-      from buildbot.kind.other.bits import ComponentClass
-
-      ... ComponentClass ...
-
-  the following construction achieves the same result::
-
-      from buildbot.plugins import kind
-
-      ... kind.ComponentClass ...
-
-  Kinds of components that are available this way are described in :doc:`../manual/plugins`.
-
-  .. note::
-
-     While the components can be still directly imported as ``buildbot.kind.other.bits``, this might not be the case after Buildbot v1.0 is released.
-
-* :bb:chsrc:`GitPoller` now supports detecting new branches
-
-* :bb:step:`MasterShellCommand` now renders the ``path`` argument.
-
-* :class:`~buildbot.process.buildstep.ShellMixin`: the ``workdir`` can now be overridden in the call to ``makeRemoteShellCommand``.
-
-* GitHub status target now allows to specify a different base URL for the API (usefule for GitHub enterprise installations).
-  This feature requires `txgithub` of version 0.2.0 or better.
-
-* GitHub change hook now supports payload validation using shared secret, see :ref:`GitHub-hook` for details.
-
-* Added StashStatusPush status hook for Atlassian Stash
-
-* Builders can now have multiple "tags" associated with them. Tags can be used in various status classes as filters (eg, on the waterfall page).
-
-* :bb:status:`MailNotifier` no longer forces SSL 3.0 when ``useTls`` is true.
-
-* GitHub change hook now supports function as codebase argument.
-
-* GitHub change hook now supports pull_request events.
-
-* :class:`~buildbot.process.buildstep.Trigger`: the ``getSchedulersAndProperties`` customization method has been backported from Nine.
-  This provides a way to dynamically specify which schedulers (and the properties for that scheduler) to trigger at runtime.
+* :bb:sched:`Triggerable` now accepts a ``reason`` parameter.
 
 Fixes
 ~~~~~
 
-* GitHub change hook now correctly responds to ping events.
-* ``buildbot.steps.http`` steps now correctly have ``url`` parameter renderable
-* :bb:step:`MasterShellCommand` now correctly logs the working directory where it was run.
-* With Git(), force the updating submodules to ensure local changes by the build are overwitten.
-  This both ensures more consistent builds and avoids errors when updating submodules.
-* With Git(), make sure 'git submodule sync' is called before 'git submodule update' to update
-  stale remote urls (:bb:bug:`2155`).
+* Cloning :bb:step:`Git` repository with submodules now works with Git < 1.7.6 instead of failing due to the use of the unsupported ``--force`` option.
 
 Deprecations, Removals, and Non-Compatible Changes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-* The builder parameter "category" is deprecated and is replaced by a parameter called "tags".
-
 Changes for Developers
 ~~~~~~~~~~~~~~~~~~~~~~
-
-* :class:`~buildbot.process.buildstep.Trigger`: ``createTriggerProperties`` now takes one argument (the properties to generate).
-
-* :class:`~buildbot.process.buildstep.Trigger`: ``getSchedulers`` method is no longer used and was removed.
 
 Slave
 -----
@@ -124,11 +40,18 @@ Slave
 Features
 ~~~~~~~~
 
+* :bb:status:`GerritStatusPush` now has parameter --notify which is used to control e-mail notifications from Gerrit.
+
+* Schedulers: the ``codebases`` parameter can now be specified in a simple list-of-strings form
+
 Fixes
 ~~~~~
 
 Deprecations, Removals, and Non-Compatible Changes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* Providing Latent AWS EC2 credentails by the .ec2/aws_id file is deprecated:
+  Instead, use the standard .aws/credentials file.
 
 Details
 -------
@@ -137,7 +60,7 @@ For a more detailed description of the changes made in this version, see the git
 
 .. code-block:: bash
 
-   git log v0.8.10..532cf49
+   git log v0.8.12..eight
 
 Older Versions
 --------------
@@ -148,6 +71,7 @@ Newer versions are also available here:
 .. toctree::
     :maxdepth: 1
 
+    0.8.12
     0.8.10
     0.8.9
     0.8.8
