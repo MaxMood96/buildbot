@@ -330,6 +330,7 @@ class WaterfallHelp(HtmlResource):
         for bldr in builders:
             tags = bldr.getTags()
             allTags.update(tags or [])
+        allTags = util.naturalSort(list(allTags))
         cxt['show_tags'] = show_tags
         cxt['all_tags'] = allTags
 
@@ -590,7 +591,7 @@ class WaterfallStatusResource(HtmlResource):
         for builderName in builderNames:
             builder = status.getBuilder(builderName)
             tags.update(builder.getTags() or [])
-        tags = sorted(tags)
+        tags = util.naturalSort(list(tags))
         ctx['tags'] = tags
 
         template = request.site.buildbot_service.templates.get_template("waterfall.html")

@@ -288,8 +288,8 @@ setup_args = {
             ('buildbot.steps.trigger', ['Trigger']),
             ('buildbot.steps.vstudio', [
                 'VC6', 'VC7', 'VS2003', 'VC8', 'VS2005', 'VCExpress9', 'VC9',
-                'VS2008', 'VC10', 'VS2010', 'VC11', 'VS2012', 'VC12', 'VS2013',
-                'MsBuild4', 'MsBuild', 'MsBuild12'])
+                'VS2008', 'VC10', 'VS2010', 'VC11', 'VS2012', 'VC12', 'VS2013', 'VC14', 'VS2015',
+                'MsBuild4', 'MsBuild', 'MsBuild12', 'MsBuild14'])
         ]),
         ('buildbot.status', [
             ('buildbot.status.github', ['GitHubStatus']),
@@ -408,6 +408,12 @@ else:
     if os.getenv('NO_INSTALL_REQS'):
         setup_args['install_requires'] = None
         setup_args['tests_require'] = None
+
+    setup_args['extras_require'] = {
+        'docs': [
+            'sphinx >= 1.4.4'
+        ]
+    }
 
 setup(**setup_args)
 

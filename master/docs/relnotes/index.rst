@@ -23,6 +23,8 @@ Features
 
 * :bb:sched:`Triggerable` now accepts a ``reason`` parameter.
 
+* new steps for Visual Studio 2015 (VS2015, VC14, and MsBuild14).
+
 Fixes
 ~~~~~
 
@@ -41,6 +43,8 @@ Features
 ~~~~~~~~
 
 * :bb:status:`GerritStatusPush` now has parameter --notify which is used to control e-mail notifications from Gerrit.
+
+* StashStatusPush now accepts optional ``key_format`` and ``name_format`` parameters to configure build reporting to Atlassian Stash.
 
 * Schedulers: the ``codebases`` parameter can now be specified in a simple list-of-strings form
 
