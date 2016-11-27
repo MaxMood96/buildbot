@@ -691,7 +691,8 @@ class MailNotifier(base.StatusReceiverMultiService):
                              results, builds, patches, logs)
 
         # GB: NEW: add test logfile excerpts
-        if "test" in t: # only if the test went wrong
+        # AP: disabled (code is broken)
+        if 0 and "test" in t: # only if the test went wrong
             for log in build.getLogs():
     	        if "test" in log.getStep().getName():
                     text += "\n"
